@@ -67,7 +67,7 @@ function supaStore() {
     putEntry: async e => ok(await sb.from('entries').upsert(e)),
     classPraise: async cid => ok(await sb.from('entries').select('*').eq('class_id', cid).eq('kind', 'praise')),
     subscribe: (sid, onS, onE) => {
-      const ch = sb.channel('s-' + sid)
+      const ch = sb.channel('s-' + sid + '-' + uid(6)) // unique name: two views of one session can be open on the same page
         .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: 'id=eq.' + sid }, p => p.new && p.new.id ? onS(p.new) : onS(null))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: 'session_id=eq.' + sid }, p => p.new && p.new.id && onE(p.new))
         .subscribe()

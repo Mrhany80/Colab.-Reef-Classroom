@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.4
+
+### Fixed
+"Show projector view" on the teacher's page failed on the live site with a "cannot add postgres_changes callbacks" error, because the
+teacher view and the projector view shared one live channel. Each view now has its own.
+
 ## 1.4.3
 
 ### Fixed
