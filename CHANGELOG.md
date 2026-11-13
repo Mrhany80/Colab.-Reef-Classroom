@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+### Fixed
+Students whose session was deleted by the teacher now see "This session has finished" instead of a blank screen.
+
 ## 1.1.0
 
 One teacher passcode instead of email, and students can write their own names on the smartboard.

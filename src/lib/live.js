@@ -19,7 +19,7 @@ export function useLive(code) {
   useEffect(() => {
     if (!sid) return
     const un = store.subscribe(sid,
-      row => setS(p => ({ ...p, session: row })),
+      row => setS(p => row ? { ...p, session: row } : { ...p, session: { ...p.session, status: 'ended' } }), // a deleted session reads as finished
       row => setS(p => ({ ...p, entries: { ...p.entries, [row.id]: row } })))
     const again = () => { if (document.visibilityState === 'visible') load() }
     document.addEventListener('visibilitychange', again); window.addEventListener('online', again)

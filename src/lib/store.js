@@ -68,8 +68,8 @@ function supaStore() {
     classPraise: async cid => ok(await sb.from('entries').select('*').eq('class_id', cid).eq('kind', 'praise')),
     subscribe: (sid, onS, onE) => {
       const ch = sb.channel('s-' + sid)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: 'id=eq.' + sid }, p => p.new && onS(p.new))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: 'session_id=eq.' + sid }, p => p.new && onE(p.new))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: 'id=eq.' + sid }, p => p.new && p.new.id ? onS(p.new) : onS(null))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'entries', filter: 'session_id=eq.' + sid }, p => p.new && p.new.id && onE(p.new))
         .subscribe()
       return () => sb.removeChannel(ch)
     },
