@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.1.0
+
+One teacher passcode instead of email, and students can write their own names on the smartboard.
+
+### New
+**Smartboard name writing** — when you add a class (in New session or in Classes), tap "Students write their names on the
+smartboard". Two ways to write:
+*One at a time, with the reader* — a student writes their first name, taps "Read my name", checks the typed result and taps "Add me to the class".
+*Whiteboard: everyone writes* — a full-screen board with four pen colours, three pen sizes, eraser, undo and clear. The whole class writes
+their names anywhere, several students at the same time (multi-touch). "Read all names" turns each one into text beside a picture of its
+handwriting for checking, or type the names yourself. Save options: "Save as picture" (PNG) and "Save as PDF"; an unfinished board is kept
+on the device until you clear it or add its names.
+The reader is the browser's built-in one where there is one; otherwise the app offers to download a free reader once (about 64 MB).
+Names can always be corrected or typed. Only first names are saved to the class; the handwriting is never uploaded.
+**Teacher passcode** — email accounts are gone. The first visit to "I am a teacher" asks you to create a passcode (8 characters or more);
+a new device asks for it once. "Lock dashboard" forgets it on that device. The dashboard, control view and report all sit behind it.
+
+### Database
+Run `supabase/update-1.1.sql` once in the Supabase SQL editor (after `schema.sql`).
+
 ## 1.0.0
 
 First release of CoLab Reef: a teacher dashboard, projector view and student app for live collaborative learning.

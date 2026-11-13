@@ -13,7 +13,9 @@ device. Open the teacher dashboard in one tab and join as students in other tabs
 
 ## Live database
 The published site uses the Supabase project in `.env.production` (address and publishable key; both are public values).
-One-time setup of a project: run `supabase/schema.sql` in its SQL editor. To use a different project, change the two
+One-time setup of a project: run `supabase/schema.sql`, then `supabase/update-1.1.sql`, in its SQL editor.
+There are no email accounts: the single teacher creates a passcode on first use. To reset a forgotten passcode, run
+`delete from app_settings;` in the SQL editor and create a new one. To use a different project, change the two
 values in `.env.production` and push. For local development against it, copy `.env.production` to `.env`.
 
 ## Link

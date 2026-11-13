@@ -20,7 +20,7 @@ function localStore() {
   if (!get('classes')) set('classes', sampleClasses())
   return {
     auth: {
-      user: async () => ({ id: 'local' }), signIn: async () => ({}), signUp: async () => ({}), signOut: async () => {},
+      user: async () => ({ id: 'local' }), isSet: async () => true, enter: async () => true, signOut: async () => {},
     },
     listClasses: async () => get('classes', []),
     saveClass: async c => { const all = get('classes', []); const i = all.findIndex(x => x.id === c.id); if (i >= 0) all[i] = c; else all.push(c); set('classes', all); return c },
@@ -40,27 +40,28 @@ function localStore() {
 }
 
 function supaStore() {
-  const sb = createClient(URL_, KEY)
+  const sb = createClient(URL_, KEY, { auth: { persistSession: false } })
   const ok = ({ data, error }) => { if (error) throw new Error(error.message); return data }
+  // One teacher, one passcode. It is kept on this device and checked by the database on every teacher action.
+  const key = () => localStorage.getItem('reef:tkey') || ''
+  const T = async (action, data = {}) => ok(await sb.rpc('teacher_do', { p_key: key(), p_action: action, p_data: data }))
   return {
     auth: {
-      user: async () => (await sb.auth.getSession()).data.session?.user || null,
-      signIn: (email, password) => sb.auth.signInWithPassword({ email, password }),
-      signUp: (email, password) => sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } }),
-      signOut: () => sb.auth.signOut(),
+      user: async () => key() && ok(await sb.rpc('teacher_ok', { p_key: key() })) ? { id: 'teacher' } : null,
+      isSet: async () => ok(await sb.rpc('teacher_status')),
+      enter: async (k, create) => { const good = ok(await sb.rpc(create ? 'teacher_setup' : 'teacher_ok', { p_key: k })); if (good) localStorage.setItem('reef:tkey', k); return good },
+      signOut: async () => localStorage.removeItem('reef:tkey'),
     },
     listClasses: async () => {
-      let rows = ok(await sb.from('classes').select('*').order('created_at'))
-      if (!rows.length) { // first run: seed clearly marked sample classes
-        rows = ok(await sb.from('classes').insert(sampleClasses().map(({ id, ...c }) => c)).select())
-      }
+      let rows = await T('list_classes')
+      if (!rows.length) { for (const c of sampleClasses()) await T('save_class', c); rows = await T('list_classes') } // first run: clearly marked sample classes
       return rows
     },
-    saveClass: async c => ok(await sb.from('classes').upsert({ id: c.id, name: c.name, is_sample: c.is_sample, students: c.students, settings: c.settings }).select().single()),
-    deleteClass: async id => ok(await sb.from('classes').delete().eq('id', id)),
-    listSessions: async () => ok(await sb.from('sessions').select('*').order('created_at')),
-    saveSession: async s => ok(await sb.from('sessions').upsert({ id: s.id, class_id: s.class_id, code: s.code, title: s.title, mode: s.mode, playlist: s.playlist, state: s.state, status: s.status }).select().single()),
-    deleteSession: async id => ok(await sb.from('sessions').delete().eq('id', id)),
+    saveClass: c => T('save_class', { id: c.id, name: c.name, is_sample: c.is_sample, students: c.students, settings: c.settings }),
+    deleteClass: id => T('delete_class', { id }),
+    listSessions: () => T('list_sessions'),
+    saveSession: s => T('save_session', { id: s.id, class_id: s.class_id, code: s.code, title: s.title, mode: s.mode, playlist: s.playlist, state: s.state, status: s.status }),
+    deleteSession: id => T('delete_session', { id }),
     lookup: async code => { const d = ok(await sb.rpc('join_lookup', { p_code: code })); return d ? { session: d.session, cls: d.class } : null },
     listEntries: async sid => ok(await sb.from('entries').select('*').eq('session_id', sid)),
     putEntry: async e => ok(await sb.from('entries').upsert(e)),

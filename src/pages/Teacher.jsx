@@ -6,25 +6,41 @@ import { Card, Icon, Tag, Note } from '../components/ui.jsx'
 import { ConfigForm } from '../components/ConfigForm.jsx'
 import { MODE } from './Projector.jsx'
 import { Brand } from './Landing.jsx'
+import { NamePad } from '../components/NamePad.jsx'
 
 const sid = () => Math.random().toString(36).slice(2, 10)
 // Roster import: pasted list or CSV. Keeps first names only (plus an optional initial to tell two students apart).
 export const parseRoster = text => [...new Set(text.split(/[\n,;\t]+/).map(t => t.trim().replace(/^["']|["']$/g, '')).filter(t => t && !/^(first ?name|name|student|students)$/i.test(t))
   .map(t => { const [a, b] = t.split(/\s+/); return a + (b && b.replace('.', '').length === 1 ? ' ' + b.replace('.', '').toUpperCase() : '') }))]
 
-function Auth({ onIn }) {
-  const [f, setF] = useState({ email: '', pw: '' }), [msg, setMsg] = useState('')
-  const run = async up => { setMsg(''); const { error, data } = await (up ? store.auth.signUp(f.email, f.pw) : store.auth.signIn(f.email, f.pw)); if (error) return setMsg(error.message); if (up && !data.session) return setMsg('Check your email to confirm your account, then sign in.'); onIn() }
-  return <main id="main" className="center"><h1><Brand /></h1><form className="card narrow form" onSubmit={e => { e.preventDefault(); run(false) }}><h2>Teacher sign in</h2>
-    <div><label htmlFor="em">Email</label><input id="em" type="email" autoComplete="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} /></div>
-    <div><label htmlFor="pw">Password</label><input id="pw" type="password" autoComplete="current-password" value={f.pw} onChange={e => setF({ ...f, pw: e.target.value })} /></div>
+// Teacher passcode: one teacher, no email. First visit creates the passcode; later visits on a new device enter it.
+function Passcode({ onIn }) {
+  const [set, setSet] = useState(null), [k, setK] = useState(''), [k2, setK2] = useState(''), [msg, setMsg] = useState(''), [busy, setBusy] = useState(false)
+  const dbMsg = e => /Could not find the (table|function)/.test(e.message) ? 'The database needs one more update before the passcode can work. Run supabase/update-1.1.sql in the Supabase SQL editor, then reload this page.' : 'Could not connect. ' + e.message
+  useEffect(() => { store.auth.isSet().then(setSet).catch(e => { setSet(false); setMsg(dbMsg(e)) }) }, [])
+  if (set === null) return <main className="center"><p className="on-dark">Loading</p></main>
+  const create = !set, ok = k.length >= 8 && (!create || k === k2)
+  const run = async e => { e.preventDefault(); if (!ok) return; setBusy(true); setMsg('')
+    try { if (await store.auth.enter(k, create)) onIn(); else setMsg(create ? 'A passcode was already created on another device. Reload the page and enter it.' : 'That passcode is not correct. Try again.') } catch (er) { setMsg(dbMsg(er)) } setBusy(false) }
+  return <main id="main" className="center"><h1><Brand /></h1><form className="card narrow form" onSubmit={run}><h2>{create ? 'Create your teacher passcode' : 'Enter your teacher passcode'}</h2>
+    <p className="hint">{create ? 'You are the only teacher. Choose a passcode of at least 8 characters. You will need it on each new device, so keep it somewhere safe.' : 'This device will remember it until you lock the dashboard.'}</p>
+    <div><label htmlFor="pk">Passcode</label><input id="pk" type="password" autoComplete={create ? 'new-password' : 'current-password'} value={k} onChange={e => setK(e.target.value)} /></div>
+    {create && <div><label htmlFor="pk2">Type it again</label><input id="pk2" type="password" autoComplete="new-password" value={k2} onChange={e => setK2(e.target.value)} />{k2 && k !== k2 && <p className="error">The two passcodes do not match.</p>}</div>}
     {msg && <p className="error" role="alert">{msg}</p>}
-    <div className="row wrap"><button className="btn primary">Sign in</button><button type="button" className="btn" onClick={() => run(true)}>Create teacher account</button></div>
-    <p className="hint">Only teachers have accounts. Students join with a code and their first name.</p></form></main>
+    <button className="btn primary" disabled={!ok || busy}>{create ? 'Create passcode and open dashboard' : 'Open dashboard'}</button>
+    <p className="hint">Students never need this. They join with the session code and their first name.</p></form></main>
+}
+// Wraps every teacher screen: dashboard, control view and report.
+export function TeacherGate({ children }) {
+  const [user, setUser] = useState(undefined)
+  const check = () => store.auth.user().then(setUser).catch(() => setUser(null))
+  useEffect(() => { check() }, [])
+  if (user === undefined) return <main className="center"><p className="on-dark">Loading</p></main>
+  return user ? children : <Passcode onIn={check} />
 }
 
 function ClassEditor({ cls, onSave, onDelete, praise }) {
-  const [c, setC] = useState(cls), [paste, setPaste] = useState(''), [one, setOne] = useState('')
+  const [c, setC] = useState(cls), [paste, setPaste] = useState(''), [one, setOne] = useState(''), [pad, setPad] = useState(false)
   const set = (k, v) => setC(p => ({ ...p, settings: { ...p.settings, [k]: v } })), S = c.settings
   const add = names => setC(p => ({ ...p, students: [...p.students, ...names.filter(n => !p.students.some(s => s.name === n)).map(n => ({ id: sid(), name: n }))] }))
   const week = Date.now() - 7 * 864e5, recent = new Set(praise.filter(p => p.at > week).map(p => p.student_id)), none = c.students.filter(s => !recent.has(s.id))
@@ -32,6 +48,8 @@ function ClassEditor({ cls, onSave, onDelete, praise }) {
     <div><label htmlFor={'cn' + c.id}>Class name</label><input id={'cn' + c.id} value={c.name} onChange={e => setC({ ...c, name: e.target.value })} /></div>
     <fieldset><legend>Roster ({c.students.length} students)</legend><div className="row wrap">{c.students.map(s => <span key={s.id} className="chip">{s.name}<button type="button" className="x" aria-label={`Remove ${s.name}`} onClick={() => setC({ ...c, students: c.students.filter(x => x.id !== s.id) })}><Icon n="x" s={12} /></button></span>)}</div>
       <div className="row"><label className="sr" htmlFor={'add' + c.id}>Add one student</label><input id={'add' + c.id} value={one} placeholder="First name" onChange={e => setOne(e.target.value)} /><button type="button" className="btn" disabled={!one.trim()} onClick={() => { add(parseRoster(one)); setOne('') }}>Add student</button></div>
+      <button type="button" className="btn" onClick={() => setPad(true)}><Icon n="edit" /> Students write their names on the smartboard</button>
+      {pad && <NamePad className={c.name} names={c.students.map(x => x.name)} onAdd={n => add([n])} onRemove={n => setC(p => ({ ...p, students: p.students.filter(x => x.name !== n) }))} onClose={() => setPad(false)} />}
       <label htmlFor={'ps' + c.id}>Import a list</label><p className="hint">Paste first names separated by commas or new lines, or choose a CSV file. Only first names are kept; family names are dropped.</p>
       <textarea id={'ps' + c.id} rows={3} value={paste} onChange={e => setPaste(e.target.value)} placeholder="Omar, Yousef, Faisal" />
       <div className="row wrap"><button type="button" className="btn" disabled={!paste.trim()} onClick={() => { add(parseRoster(paste)); setPaste('') }}>Import {parseRoster(paste).length || ''} names</button>
@@ -47,7 +65,7 @@ function ClassEditor({ cls, onSave, onDelete, praise }) {
 }
 
 function Builder({ classes, sessions, onCreate }) {
-  const [f, setF] = useState({ title: '', class_id: classes[0]?.id || 'new', mode: 'devices', playlist: [] }), [open, setOpen] = useState(null), [nc, setNc] = useState({ name: '', names: '' }), [busy, setBusy] = useState(false)
+  const [f, setF] = useState({ title: '', class_id: classes[0]?.id || 'new', mode: 'devices', playlist: [] }), [open, setOpen] = useState(null), [nc, setNc] = useState({ name: '', names: '' }), [busy, setBusy] = useState(false), [pad, setPad] = useState(false)
   const isNew = f.class_id === 'new', roster = parseRoster(nc.names), dup = isNew && classes.some(c => c.name.trim().toLowerCase() === nc.name.trim().toLowerCase())
   const setPl = pl => setF(p => ({ ...p, playlist: pl })), mv = (i, d) => { const pl = [...f.playlist];[pl[i], pl[i + d]] = [pl[i + d], pl[i]]; setPl(pl); setOpen(null) }
   const ok = f.title.trim() && f.playlist.length && (isNew ? nc.name.trim() && roster.length >= 2 && !dup : f.class_id)
@@ -56,7 +74,9 @@ function Builder({ classes, sessions, onCreate }) {
     <div><label htmlFor="sc">Class</label><select id="sc" value={f.class_id} onChange={e => setF({ ...f, class_id: e.target.value })}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="new">Add a new class</option></select></div>
     {isNew && <fieldset className="subcard"><legend>New class</legend>
       <div><label htmlFor="nc-n">Class name</label><input id="nc-n" value={nc.name} placeholder="e.g. Grade 10 B" onChange={e => setNc({ ...nc, name: e.target.value })} aria-describedby={dup ? 'nc-dup' : undefined} />{dup && <p id="nc-dup" className="error" role="alert">You already have a class with this name. Choose it from the list above or use a different name.</p>}</div>
-      <div><label htmlFor="nc-s">Student first names</label><p className="hint">Paste or type first names separated by commas or new lines, or choose a CSV file. Only first names are kept; family names are dropped.</p>
+      <div><button type="button" className="btn primary" onClick={() => setPad(true)}><Icon n="edit" /> Students write their names on the smartboard</button>
+        {pad && <NamePad className={nc.name} names={roster} onAdd={n => setNc(v => ({ ...v, names: (v.names.trim() ? v.names.trim() + '\n' : '') + n }))} onRemove={n => setNc(v => ({ ...v, names: parseRoster(v.names).filter(x => x !== n).join('\n') }))} onClose={() => setPad(false)} />}</div>
+      <div><label htmlFor="nc-s">Or type or paste the first names</label><p className="hint">Paste or type first names separated by commas or new lines, or choose a CSV file. Only first names are kept; family names are dropped.</p>
         <textarea id="nc-s" rows={4} value={nc.names} placeholder="Omar, Yousef, Faisal" onChange={e => setNc({ ...nc, names: e.target.value })} /></div>
       <div className="row wrap"><label className="btn sm">Choose CSV file<input type="file" accept=".csv,.txt" className="sr" onChange={async e => { const file = e.target.files[0]; if (file) { const t = (await file.text()).split('\n').map(l => l.split(',')[0]).join('\n'); setNc(v => ({ ...v, names: t })) } }} /></label>
         <span className="hint" role="status">{roster.length} student{roster.length === 1 ? '' : 's'}{roster.length ? ': ' + roster.join(', ') : ''}</span></div>
@@ -80,13 +100,11 @@ function Builder({ classes, sessions, onCreate }) {
 }
 
 export function TeacherHome() {
-  const [user, setUser] = useState(undefined), [classes, setClasses] = useState([]), [sessions, setSessions] = useState([]), [praise, setPraise] = useState({}), [tab, setTab] = useState('sessions'), [err, setErr] = useState('')
+  const [classes, setClasses] = useState([]), [sessions, setSessions] = useState([]), [praise, setPraise] = useState({}), [tab, setTab] = useState('sessions'), [err, setErr] = useState('')
   const load = async () => { try { const c = await store.listClasses(); setClasses(c); setSessions(await store.listSessions()); const p = {}; for (const x of c) p[x.id] = await store.classPraise(x.id); setPraise(p) } catch (e) { setErr(e.message) } }
-  useEffect(() => { store.auth.user().then(u => { setUser(u); if (u) load() }) }, [])
-  if (user === undefined) return <main className="center"><p className="on-dark">Loading</p></main>
-  if (!user) return <Auth onIn={() => store.auth.user().then(u => { setUser(u); load() })} />
+  useEffect(() => { load() }, [])
   const name = id => classes.find(c => c.id === id)?.name
-  return <div className="teacher"><header className="top"><a href="#/"><Brand small /></a><div className="top-m"><b>Teacher dashboard</b><span>{LIVE ? user.email : 'Demo mode: data stays in this browser'}</span></div>{LIVE && <button className="btn sm" onClick={() => store.auth.signOut().then(() => setUser(null))}>Sign out</button>}</header>
+  return <div className="teacher"><header className="top"><a href="#/"><Brand small /></a><div className="top-m"><b>Teacher dashboard</b><span>{LIVE ? 'Live: synced across devices' : 'Demo mode: data stays in this browser'}</span></div>{LIVE && <button className="btn sm" onClick={() => store.auth.signOut().then(() => { location.hash = '/' })}>Lock dashboard</button>}</header>
     <div className="tabs always" role="tablist">{[['sessions', 'Sessions'], ['new', 'New session'], ['classes', 'Classes']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
     <main id="main" className="stack">{err && <p className="error" role="alert">{/Could not find the (table|function)/.test(err) ? 'The database is not set up yet. Run supabase/schema.sql once in the Supabase SQL editor, then reload this page.' : 'Could not load your data. ' + err}</p>}
       {tab === 'sessions' && <Card title="Your sessions">{!sessions.length && <><p>No sessions yet. A session is one lesson: a class, a room mode and a playlist of activities.</p><button className="btn primary" onClick={() => setTab('new')}>Build your first session</button></>}
