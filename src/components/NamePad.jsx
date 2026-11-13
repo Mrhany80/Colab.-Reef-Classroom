@@ -4,7 +4,7 @@ import { Icon } from './ui.jsx'
 // Students write their first name by hand on the smartboard. The ink is read into text, the student or
 // teacher checks it, and only the typed first name is kept. The handwriting itself is never stored.
 let trocr = null
-async function nativeRead(strokes) {
+export async function nativeRead(strokes) {
   if (!navigator.createHandwritingRecognizer) return null
   try {
     if (!(await navigator.queryHandwritingRecognizer({ languages: ['en'] }))) return null
@@ -13,13 +13,13 @@ async function nativeRead(strokes) {
     const pr = await dr.getPrediction(); dr.clear(); rec.finish(); return pr && pr[0] ? pr[0].text : ''
   } catch { return null }
 }
-function inkImage(strokes) {
+export function inkImage(strokes) {
   const xs = strokes.flat().map(p => p[0]), ys = strokes.flat().map(p => p[1]), x0 = Math.min(...xs), y0 = Math.min(...ys), w = Math.max(20, Math.max(...xs) - x0), h = Math.max(20, Math.max(...ys) - y0)
   const pad = 20, H = 160, s = (H - pad * 2) / h, c = document.createElement('canvas'); c.width = Math.max(64, Math.round(w * s + pad * 2)); c.height = H
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, H); g.strokeStyle = '#000'; g.lineWidth = 5; g.lineCap = g.lineJoin = 'round'
   strokes.forEach(pts => { g.beginPath(); pts.forEach((p, i) => g[i ? 'lineTo' : 'moveTo'](pad + (p[0] - x0) * s, pad + (p[1] - y0) * s)); g.stroke() }); return c.toDataURL('image/png')
 }
-async function modelRead(strokes, onProgress) {
+export async function modelRead(strokes, onProgress) {
   if (!trocr) { const T = await import(/* @vite-ignore */ 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.1/+esm'); const files = {}
     trocr = await T.pipeline('image-to-text', 'Xenova/trocr-small-handwritten', { dtype: 'q8', progress_callback: p => { if (p.status === 'progress' && p.total) { files[p.file] = [p.loaded, p.total]; const v = Object.values(files); onProgress(v.reduce((a, f) => a + f[0], 0) / v.reduce((a, f) => a + f[1], 0)) } } })
     try { localStorage.setItem('reef:trocr', '1') } catch {} }
@@ -28,7 +28,7 @@ async function modelRead(strokes, onProgress) {
 export const tidyName = t => { const [a, b] = t.replace(/[^\p{L}\s.'-]/gu, ' ').trim().split(/\s+/); if (!a) return ''
   const cap = w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); return cap(a) + (b && b.replace('.', '').length === 1 ? ' ' + b.replace('.', '').toUpperCase() : '') }
 
-const COLORS = ['#14263d', '#b3261e', '#0b7fab', '#1b7a43']
+export const COLORS = ['#14263d', '#b3261e', '#0b7fab', '#1b7a43']
 const box = pts => { const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] }
 // Whiteboard: split everything written on the board into separate names (strokes that sit close together).
 export function groupInk(strokes) {
@@ -38,7 +38,7 @@ export function groupInk(strokes) {
   const g = {}; strokes.forEach((s, i) => (g[find(i)] = g[find(i)] || []).push(s.pts))
   return Object.values(g).map(pts => ({ pts, b: box(pts.flat()) })).sort((x, y) => Math.abs(x.b[1] - y.b[1]) > H ? x.b[1] - y.b[1] : x.b[0] - y.b[0])
 }
-async function readInk(pts, onProgress, allowDownload) {
+export async function readInk(pts, onProgress, allowDownload) {
   const n = await nativeRead(pts); if (n) return n
   if (!allowDownload && !trocr && !localStorage.getItem('reef:trocr')) return null // caller asks before the one-time download
   return modelRead(pts, onProgress)

@@ -1,5 +1,7 @@
 # CoLab Reef
 
+Designed by **Mr. Hany Taha**.
+
 Real-time classroom app: a teacher dashboard, projector view and student app that run 12 collaborative
 learning activities with a built-in praise engine. React + Vite, Supabase (Postgres + Realtime).
 

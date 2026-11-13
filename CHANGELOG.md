@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.0
+
+Handwriting inside the activities.
+
+### New
+**Write by hand in any written answer** — every answer box (Think-Pair-Share, Claim-Evidence-Reasoning, See-Think-Wonder and the pair or
+group answer) has a "Write by hand" button. The student writes with a finger or pen and then chooses:
+*Turn into text* — the handwriting reader types it into the box, where it can be corrected before locking.
+*Lock my handwriting as my answer* — the handwriting itself is the answer. Partners, the teacher and the report see it as a picture.
+**Class whiteboard on the smartboard** — the projector view has "Open class whiteboard" in every activity: a full-screen board with four
+pen colours, three sizes, eraser, undo and clear, where several students write at the same time. Save options: "Save to this activity"
+(the teacher's control view and the session report show it), "Read handwriting into text" (checked beside the handwriting, then saved
+with the board), "Save as picture" and "Save as PDF". After saving, the board clears for the next question.
+The reader is the browser's built-in one where there is one; otherwise it is downloaded once (about 64 MB).
+
+**New look** — a deeper sea background, a first screen with a living reef and rising bubbles, lifted cards and brighter buttons.
+Motion is switched off for anyone whose device asks for reduced motion.
+**Maker credit** — "Designed by Mr. Hany Taha" on the first screen, the student app, the projector, the dashboard and the report.
+
+### Good to know
+Handwritten answers and saved class boards are stored with the session as pictures. A handwritten answer cannot be compared word by word,
+so "revised" is recorded whenever the second handwritten answer is a different picture from the first.
+
 ## 1.1.1
 
 ### Fixed

@@ -17,7 +17,7 @@ export const BEHAVIOURS = {
 export const ABILITY_WORDS = /\b(smart|clever|genius|gifted|talented|brilliant|bright|intelligent|natural)\b/i
 export const customSentence = (n, behaviour, effect) => `${n}, you ${behaviour.trim().replace(/^you\s+/i, '').replace(/[.!]+$/, '')}. ${effect.trim().replace(/[.!]*$/, '.')}`
 
-const val = e => e ? (e.data.choice ?? (e.data.text || '').trim().toLowerCase()) : undefined
+const val = e => e ? (e.data.choice ?? (e.data.ink || (e.data.text || '').trim().toLowerCase())) : undefined
 
 // Scan the session's entries for target behaviours. Returns one trigger per behaviour event.
 export function detect(session, cls, entries) {

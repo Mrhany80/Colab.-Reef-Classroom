@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Card, Note, Tag, By, AnswerBox, ChoiceBox, Room, useTurn, TurnGate, Bars, Wait, Icon, pct, Stems, DataTable, parseTable } from '../components/ui.jsx'
 import { Progress } from './a.jsx'
 import { uid } from '../lib/store.js'
+import { Ans } from '../components/Ink.jsx'
 
 const L = i => String.fromCharCode(65 + i)
 const avg = a => a.length ? Math.round((a.reduce((x, y) => x + y, 0) / a.length) * 10) / 10 : 0
@@ -75,7 +76,7 @@ const cer = {
       const next = part === 'claim' ? { ...doc, claim: v, claimBy: ctx.me.id } : part === 'reasoning' ? { ...doc, reasoning: v, reasonBy: ctx.me.id } : { ...doc, evidence: [...doc.evidence, { id: uid(5), text: v, row, by: ctx.me.id }] }
       ctx.save('cer', { ...next, gi, text: next.claim || '' }, 'g' + gi); setT(''); setRow(null); turn.pass() }
     if (ctx.phase.id === 'build') return <>{Q}<CerData cfg={cfg} pick={turn.mine && part === 'evidence' ? setRow : null} picked={row} />
-      <Card title="Your group's own claims">{[ctx.me.id, ...ctx.mates].map(i => <p key={i}><By ctx={ctx} id={i} /> {ctx.one('first', i)?.data.text || <span className="hint">not locked yet</span>}</p>)}</Card>
+      <Card title="Your group's own claims">{[ctx.me.id, ...ctx.mates].map(i => <p key={i}><By ctx={ctx} id={i} /> {ctx.one('first', i) ? <Ans d={ctx.one('first', i).data} /> : <span className="hint">not locked yet</span>}</p>)}</Card>
       <Card title="Our argument"><CerView ctx={ctx} gi={gi} />
         <TurnGate ctx={ctx} turn={turn} what="add to the argument">
           <fieldset><legend>What will you add?</legend><div className="row wrap">{['claim', 'evidence', 'reasoning'].map(p => <label key={p} className={'chip' + (part === p ? ' on' : '')}><input type="radio" className="sr" name="part" checked={part === p} onChange={() => { setPart(p); setT(p === 'claim' ? doc.claim || '' : p === 'reasoning' ? doc.reasoning || '' : '') }} />{p === 'claim' ? 'Group claim' : p === 'evidence' ? 'A piece of evidence' : 'Reasoning'}</label>)}</div></fieldset>

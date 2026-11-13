@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { timeLeft } from '../lib/live.js'
 import { uid } from '../lib/store.js'
+import { HandAnswer, Ans } from './Ink.jsx'
 
 const P = {
   lock: 'M6 10V8a6 6 0 1112 0v2h1a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9a1 1 0 011-1h1zm2 0h8V8a4 4 0 00-8 0v2z',
@@ -43,12 +44,14 @@ export const Stems = ({ stems, onPick }) => stems?.length ? <div className="stem
 // Private answer that locks. Peer content elsewhere is gated on this entry existing.
 export function AnswerBox({ ctx, kind, label, hint, prefill = '', k, button = 'Lock my answer', stems, rows = 4 }) {
   const mine = ctx.one(kind, k)
-  const [t, setT] = useState(prefill)
+  const [t, setT] = useState(prefill), [hand, setHand] = useState(false)
   const id = 'a-' + kind
-  if (mine) return <div className="locked"><div className="lbl"><Icon n="lock" /> {label} <Tag>Locked</Tag></div><p>{mine.data.text}</p></div>
+  if (mine) return <div className="locked"><div className="lbl"><Icon n="lock" /> {label} <Tag>Locked</Tag></div><p><Ans d={mine.data} /></p></div>
   return <form className="field" onSubmit={e => { e.preventDefault(); if (t.trim()) ctx.save(kind, { text: t.trim(), onTime: ctx.onTime() }, k) }}>
     <label htmlFor={id}>{label}</label>{hint && <p className="hint">{hint}</p>}
     <Stems stems={stems} onPick={s => setT(v => (v ? v + ' ' : '') + s.replace(/\.\.\./g, '').trim() + ' ')} />
+    {hand ? <HandAnswer keepLabel="Lock my handwriting as my answer" onCancel={() => setHand(false)} onText={x => { setT(v => (v ? v + ' ' : '') + x); setHand(false) }} onInk={png => ctx.save(kind, { text: 'Handwritten answer', ink: png, onTime: ctx.onTime() }, k)} />
+      : <button type="button" className="btn sm" onClick={() => setHand(true)}><Icon n="edit" /> Write by hand</button>}
     <textarea id={id} rows={rows} value={t} onChange={e => setT(e.target.value)} />
     <button className="btn primary" disabled={!t.trim()}><Icon n="lock" /> {button}</button>
     <p className="hint">Nobody sees this until you lock it. You cannot change it after locking.</p>

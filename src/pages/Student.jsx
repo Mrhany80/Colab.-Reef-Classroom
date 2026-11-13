@@ -3,7 +3,7 @@ import { useLive, buildCtx } from '../lib/live.js'
 import { store } from '../lib/store.js'
 import { Timer, Card, Icon, Wait, Tag } from '../components/ui.jsx'
 import { Reef } from '../components/Reef.jsx'
-import { Brand } from './Landing.jsx'
+import { Brand, Maker } from './Landing.jsx'
 
 export function useReefPoints(session, entries) {
   const [base, setBase] = useState(0)
@@ -34,5 +34,6 @@ export function StudentApp({ code }) {
       {live.session.status === 'ended' ? <Card title="This session has finished"><p>Thank you for taking part, {me.name}.</p></Card> : <StudentBody live={live} me={me} />}
       <details className="mypraise"><summary><Icon n="star" /> My praise ({praise.length})</summary>{praise.length ? <ul>{praise.map(p => <li key={p.id}>{p.data.text}</li>)}</ul> : <p className="hint">Praise for what you do in this session appears here. Only you can see it.</p>}</details>
       <Reef compact points={points} milestones={live.cls.settings?.milestones} />
+      <Maker dark />
     </main></div>
 }

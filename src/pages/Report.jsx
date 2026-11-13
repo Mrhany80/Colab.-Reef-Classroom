@@ -6,14 +6,14 @@ import { BEHAVIOURS } from '../lib/praise.js'
 import { counts, summ } from '../lib/summ.js'
 import { Card, Icon, Tag, Bars } from '../components/ui.jsx'
 import { MODE } from './Projector.jsx'
-import { Brand } from './Landing.jsx'
+import { Brand, Maker } from './Landing.jsx'
 
 export function buildReport(session, cls, entries) {
   const steps = session.playlist.map((it, i) => ({ i, name: MODULES[it.type].name, pairs: MODULES[it.type].revised || [] }))
   const joined = new Set(entries.filter(e => e.kind === 'join').map(e => e.student_id)), bk = Object.keys(BEHAVIOURS)
   const rows = cls.students.map(s => { const mine = entries.filter(e => e.student_id === s.id)
     const per = steps.map(st => mine.filter(e => e.step === st.i && counts(e)).length)
-    const ba = steps.flatMap(st => st.pairs.map(([a, b]) => { const x = mine.find(e => e.step === st.i && e.kind === a), y = mine.find(e => e.step === st.i && e.kind === b); return { step: st, before: x ? summ(x) : '', after: y ? summ(y) : '', changed: !!(x && y && (x.data.choice ?? x.data.text) !== (y.data.choice ?? y.data.text)) } }))
+    const ba = steps.flatMap(st => st.pairs.map(([a, b]) => { const x = mine.find(e => e.step === st.i && e.kind === a), y = mine.find(e => e.step === st.i && e.kind === b); return { step: st, before: x ? summ(x) : '', after: y ? summ(y) : '', changed: !!(x && y && (x.data.choice ?? x.data.ink ?? x.data.text) !== (y.data.choice ?? y.data.ink ?? y.data.text)) } }))
     const pr = mine.filter(e => e.kind === 'praise')
     return { s, joined: session.mode === 'one' ? per.some(Boolean) : joined.has(s.id), per, total: per.reduce((a, b) => a + b, 0), ba, praise: Object.fromEntries(bk.map(k => [k, pr.filter(p => p.data.behaviour === k).length])), praiseN: pr.length } })
   return { steps, rows, bk }
@@ -41,10 +41,13 @@ export function Report({ code }) {
         <tbody>{r.rows.map(x => <tr key={x.s.id}><th>{x.s.name}</th><td>{x.joined ? 'Yes' : 'No'}</td>{x.per.map((n, i) => <td key={i}>{n}</td>)}<td><b>{x.total}</b></td></tr>)}</tbody></table></div><p className="hint">A contribution is any locked answer, vote, card, comment, link, note or teacher-recorded participation.</p></Card>
       {r.steps.some(s => s.pairs.length) && <Card title="Answers before and after peer talk"><div className="scroll"><table className="data"><thead><tr><th>Student</th><th>Activity</th><th>Before</th><th>After</th><th>Changed</th></tr></thead>
         <tbody>{r.rows.flatMap(x => x.ba.filter(b => b.before || b.after).map((b, i) => <tr key={x.s.id + i}><th>{x.s.name}</th><td>{b.step.i + 1}. {b.step.name}</td><td>{b.before}</td><td>{b.after}</td><td>{b.changed ? <Tag tone="ok">Revised</Tag> : 'Same'}</td></tr>))}</tbody></table></div></Card>}
+      {entries.some(e => e.kind === 'board') && <Card title="Class whiteboards"><div className="cols2">{entries.filter(e => e.kind === 'board').sort((a, b) => a.at - b.at).map(b => <figure key={b.id}><img className="figure" src={b.data.png} alt={'Class whiteboard from ' + (r.steps[b.step]?.name || 'the session')} /><figcaption>{b.step + 1}. {r.steps[b.step]?.name}, {b.data.phase}{b.data.texts?.length ? ': ' + b.data.texts.join(' | ') : ''}</figcaption></figure>)}</div></Card>}
+      {entries.some(e => e.data?.ink) && <Card title="Handwritten answers"><ul className="list">{entries.filter(e => e.data?.ink && e.kind !== 'praise').sort((a, b) => a.step - b.step || a.at - b.at).map(e => <li key={e.id}><div><b>{cls.students.find(s => s.id === e.student_id)?.name || 'Group'}</b> <span className="hint">{e.step + 1}. {r.steps[e.step]?.name}</span><br /><img className="inkans" src={e.data.ink} alt="Handwritten answer" /></div></li>)}</ul></Card>}
       <Card title="Praise given, by behaviour"><Bars rows={r.bk.map(k => ({ label: BEHAVIOURS[k].label, v: r.rows.reduce((a, x) => a + x.praise[k], 0) }))} />
         <div className="scroll"><table className="data"><thead><tr><th>Student</th>{used.map(k => <th key={k}>{BEHAVIOURS[k].label}</th>)}<th>Total</th></tr></thead><tbody>{r.rows.map(x => <tr key={x.s.id}><th>{x.s.name}</th>{used.map(k => <td key={k}>{x.praise[k] || ''}</td>)}<td><b>{x.praiseN}</b></td></tr>)}</tbody></table></div>
         <p className="hint">Listed in roster order, never ranked.</p></Card>
       <Card title="Students with no praise in the last 7 days">{week == null ? <p>Loading</p> : none.length ? <p><b>{none.map(s => s.name).join(', ')}</b></p> : <p>Every student in {cls.name} has been praised this week.</p>}
         <p className="hint">Look for a small step from each of these students next lesson and praise it straight away.</p></Card>
+      <Maker dark />
     </main></div>
 }

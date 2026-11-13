@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS } from '../lib/content.js'
 import { Card, Icon, Tag, Note } from '../components/ui.jsx'
 import { ConfigForm } from '../components/ConfigForm.jsx'
 import { MODE } from './Projector.jsx'
-import { Brand } from './Landing.jsx'
+import { Brand, Maker } from './Landing.jsx'
 import { NamePad } from '../components/NamePad.jsx'
 
 const sid = () => Math.random().toString(36).slice(2, 10)
@@ -113,5 +113,6 @@ export function TeacherHome() {
       {tab === 'new' && <Builder classes={classes} sessions={sessions} onCreate={async (ses, cls) => { try { setErr(''); if (cls) await store.saveClass(cls); await store.saveSession(ses); location.hash = '/control/' + ses.code } catch (e) { setErr(e.message); load() } }} />}
       {tab === 'classes' && <><button className="btn primary" onClick={() => setClasses([...classes, { id: crypto.randomUUID(), name: '', is_sample: false, students: [], settings: structuredClone(DEFAULT_SETTINGS), isNew: true }])}><Icon n="plus" /> New class</button>
         {classes.map(c => <ClassEditor key={c.id} cls={c} praise={praise[c.id] || []} onSave={async ({ isNew, ...x }) => { await store.saveClass(x); load() }} onDelete={async id => { for (const s of sessions.filter(s => s.class_id === id)) await store.deleteSession(s.id); await store.deleteClass(id); load() }} />)}</>}
+      <Maker dark />
     </main></div>
 }

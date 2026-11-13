@@ -1,18 +1,26 @@
 import React, { useState } from 'react'
 import { store, LIVE } from '../lib/store.js'
 import { Icon } from '../components/ui.jsx'
+import { Reef } from '../components/Reef.jsx'
 
 export const Brand = ({ small }) => <span className={'brand' + (small ? ' small' : '')}><Icon n="coral" s={small ? 22 : 34} /> CoLab Reef</span>
+export const Maker = ({ dark }) => <p className={'maker' + (dark ? ' on-dark' : '')}>Designed by <b>Mr. Hany Taha</b></p>
+const Bubbles = () => <div className="bubbles" aria-hidden="true">{[8, 19, 31, 44, 58, 67, 79, 91].map((x, i) => <i key={x} style={{ left: x + '%', animationDelay: `-${i * 1.7}s`, width: 8 + (i % 4) * 5, height: 8 + (i % 4) * 5, animationDuration: `${9 + (i % 3) * 3}s` }} />)}</div>
 export function Landing() {
-  return <main id="main" className="center">
-    <h1><Brand /></h1><p className="lead">Live collaborative learning for science classrooms. Think first, share second, take equal turns.</p>
-    <div className="cols2 narrow">
-      <a className="tile" href="#/join"><Icon n="users" s={30} /><b>I am a student</b><span>Join with a 6-character code</span></a>
-      <a className="tile" href="#/teacher"><Icon n="screen" s={30} /><b>I am a teacher</b><span>Classes, sessions and reports</span></a>
-    </div>
-    {!LIVE && <p className="hint on-dark">Demo mode: data stays in this browser and syncs between tabs on this device. Connect Supabase to run a real class.</p>}
-    <p className="hint on-dark">Version {__VERSION__}</p>
-  </main>
+  return <div className="hero"><Bubbles />
+    <main id="main" className="center">
+      <span className="pill-tag">Live collaborative learning for science classrooms</span>
+      <h1><Brand /></h1><p className="lead">Think first. Share second. Take equal turns. <b>Grow the reef together.</b></p>
+      <Maker dark />
+      <div className="cols2 narrow">
+        <a className="tile" href="#/join"><span className="tile-ic"><Icon n="users" s={30} /></span><b>I am a student</b><span>Join with a 6-character code</span></a>
+        <a className="tile" href="#/teacher"><span className="tile-ic"><Icon n="screen" s={30} /></span><b>I am a teacher</b><span>Classes, sessions and reports</span></a>
+      </div>
+      <ul className="feats"><li><Icon n="lock" /> Private thinking before sharing</li><li><Icon n="users" /> 12 collaborative activities</li><li><Icon n="edit" /> Handwriting on the smartboard</li><li><Icon n="star" /> Praise that grows a class reef</li></ul>
+      {!LIVE && <p className="hint on-dark">Demo mode: data stays in this browser and syncs between tabs on this device.</p>}
+      <p className="hint on-dark">Version {__VERSION__}</p>
+    </main>
+    <Reef points={64} milestones={[{ points: 10, label: '' }, { points: 25, label: '' }, { points: 50, label: '' }]} decorative /></div>
 }
 
 export function Join({ code: preset }) {

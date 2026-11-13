@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Card, Note, Tag, By, AnswerBox, ChoiceBox, Room, useTurn, TurnGate, Bars, Wait, Icon, pct, Stems } from '../components/ui.jsx'
 import { uid } from '../lib/store.js'
+import { HandAnswer, Ans } from '../components/Ink.jsx'
 
 const L = i => String.fromCharCode(65 + i)
 export const Progress = ({ ctx, kind, label = 'answers locked' }) => { const n = new Set(ctx.all(kind).map(e => e.student_id)).size; const t = ctx.present().length
@@ -9,11 +10,13 @@ export const Progress = ({ ctx, kind, label = 'answers locked' }) => { const n =
 // Shared text written under the turn lock, tagged with its author.
 export function GroupText({ ctx, kind, label, gi = ctx.gi, stems, k }) {
   const key = k || 'g' + gi, doc = ctx.one(kind, key), turn = useTurn(ctx, gi, kind + (k || ''))
-  const [t, setT] = useState(doc?.data.text || '')
+  const [t, setT] = useState(doc?.data.ink ? '' : doc?.data.text || ''), [hand, setHand] = useState(false)
   return <Card title={label}>
-    {doc ? <div className="locked"><p>{doc.data.text}</p><div className="hint">Last written by <By ctx={ctx} id={doc.data.by} /></div></div> : <p className="hint">Nothing written yet.</p>}
+    {doc ? <div className="locked"><p><Ans d={doc.data} /></p><div className="hint">Last written by <By ctx={ctx} id={doc.data.by} /></div></div> : <p className="hint">Nothing written yet.</p>}
     <TurnGate ctx={ctx} turn={turn} what="write for the group">
       <Stems stems={stems} onPick={s => setT(v => (v ? v + ' ' : '') + s.replace(/\.\.\./g, '').trim() + ' ')} />
+      {hand ? <HandAnswer keepLabel="Save our handwriting and pass the turn" onCancel={() => setHand(false)} onText={x => { setT(v => (v ? v + ' ' : '') + x); setHand(false) }} onInk={png => { ctx.save(kind, { text: 'Handwritten answer', ink: png, by: ctx.me.id, gi }, key); setHand(false); turn.pass() }} />
+        : <button type="button" className="btn sm" onClick={() => setHand(true)}><Icon n="edit" /> Write by hand</button>}
       <label className="sr" htmlFor={'gt-' + kind + key}>{label}</label>
       <textarea id={'gt-' + kind + key} rows={3} value={t} onChange={e => setT(e.target.value)} />
       <button type="button" className="btn primary" disabled={!t.trim()} onClick={() => { ctx.save(kind, { text: t.trim(), by: ctx.me.id, gi }, key); turn.pass() }}>Save and pass the turn</button>
@@ -21,7 +24,7 @@ export function GroupText({ ctx, kind, label, gi = ctx.gi, stems, k }) {
 }
 
 /* ---------- 1. Think-Pair-Share ---------- */
-const tpsRevised = ctx => { const f = ctx.all('final'); return { n: f.filter(e => (ctx.one('first', e.student_id)?.data.text || '') !== e.data.text).length, t: f.length } }
+const tpsRevised = ctx => { const f = ctx.all('final'); return { n: f.filter(e => (ctx.one('first', e.student_id)?.data.ink || ctx.one('first', e.student_id)?.data.text || '') !== (e.data.ink || e.data.text)).length, t: f.length } }
 const tps = {
   name: 'Think-Pair-Share', family: 'Pair and small group', blurb: 'Private answer, pair talk, pair answer, teacher spotlight.',
   phases: [{ id: 'think', name: 'Think', secs: 120, proj: 'Think alone. Write and lock your own answer. No talking yet.' }, { id: 'pair', name: 'Pair', secs: 180, proj: 'Share your answer with your partner. Listen first, then compare.' },
@@ -33,20 +36,20 @@ const tps = {
     const Q = <Card title="Question"><p className="q">{cfg.question}</p></Card>
     if (phase.id === 'think' || !first) return <>{Q}<AnswerBox ctx={ctx} kind="first" label="Your own answer" />{phase.id !== 'think' && <Note icon="lock">Lock your own answer first. Then you will see your partner's.</Note>}
       {phase.id === 'think' && first && <Note>Locked. Wait for the pair step.</Note>}</>
-    const peers = ctx.mates.map(i => <div key={i} className="peer"><By ctx={ctx} id={i} />{ctx.one('first', i) ? <p>{ctx.one('first', i).data.text}</p> : <p className="hint">Still thinking. Their answer appears when they lock it.</p>}</div>)
+    const peers = ctx.mates.map(i => <div key={i} className="peer"><By ctx={ctx} id={i} />{ctx.one('first', i) ? <p><Ans d={ctx.one('first', i).data} /></p> : <p className="hint">Still thinking. Their answer appears when they lock it.</p>}</div>)
     if (phase.id === 'pair') return <>{Q}<AnswerBox ctx={ctx} kind="first" label="Your answer" /><Card title="Your partner's answer">{peers.length ? peers : <p className="hint">No partner yet.</p>}</Card>
       <Room ctx={ctx} roomId={'p' + ctx.gi} members={ctx.groups[ctx.gi] || []} stems={cfg.stems} /></>
     if (phase.id === 'agree') return <>{Q}<GroupText ctx={ctx} kind="pair" label="Our pair answer" stems={cfg.stems} />
-      <AnswerBox ctx={ctx} kind="final" label="Your answer now" hint="Keep it or improve it after talking with your partner." prefill={first.data.text} button="Lock my final answer" /></>
+      <AnswerBox ctx={ctx} kind="final" label="Your answer now" hint="Keep it or improve it after talking with your partner." prefill={first.data.ink ? '' : first.data.text} button="Lock my final answer" /></>
     const spot = ctx.x.spot === ctx.gi
     return <>{spot ? <Card tone="coral" title="Your pair is in the spotlight"><p>Be ready to explain your pair answer to the class.</p></Card> : <Wait>Look at the projector and listen to the pair in the spotlight.</Wait>}
-      <Card title="Our pair answer"><p>{ctx.one('pair', 'g' + ctx.gi)?.data.text || 'No pair answer was saved.'}</p></Card></>
+      <Card title="Our pair answer"><p>{ctx.one('pair', 'g' + ctx.gi) ? <Ans d={ctx.one('pair', 'g' + ctx.gi).data} /> : 'No pair answer was saved.'}</p></Card></>
   },
   Teacher({ ctx }) {
     const r = tpsRevised(ctx)
     return <Card title="Pairs" right={<Tag>{pct(r.n, r.t)}% revised their answer ({r.n} of {r.t})</Tag>}>
       {!ctx.groups.length && <p className="hint">Pairs are made when the Pair step starts.</p>}
-      <ul className="list">{ctx.groups.map((g, i) => { const d = ctx.one('pair', 'g' + i); return <li key={i}><div><b>{ctx.names(g)}</b><p>{d ? d.data.text : <span className="hint">No pair answer yet</span>}</p></div>
+      <ul className="list">{ctx.groups.map((g, i) => { const d = ctx.one('pair', 'g' + i); return <li key={i}><div><b>{ctx.names(g)}</b><p>{d ? <Ans d={d.data} /> : <span className="hint">No pair answer yet</span>}</p></div>
         <button className={'btn sm' + (ctx.x.spot === i ? ' primary' : '')} onClick={() => ctx.setX({ spot: ctx.x.spot === i ? null : i })}><Icon n="star" /> {ctx.x.spot === i ? 'In spotlight' : 'Spotlight'}</button></li> })}</ul></Card>
   },
   Projector({ ctx }) {
@@ -55,7 +58,7 @@ const tps = {
       {ctx.phase.id === 'think' && <Progress ctx={ctx} kind="first" />}
       {ctx.phase.id === 'agree' && <Progress ctx={ctx} kind="final" label="final answers locked" />}
       {ctx.phase.id === 'share' && <><div className="stat"><b>{pct(r.n, r.t)}%</b> of students revised their answer after pair talk</div>
-        {sp != null && ctx.groups[sp] && <Card tone="coral" title={'Spotlight: ' + ctx.names(ctx.groups[sp])}><p className="q">{ctx.one('pair', 'g' + sp)?.data.text || 'This pair will explain their answer aloud.'}</p></Card>}</>}</>
+        {sp != null && ctx.groups[sp] && <Card tone="coral" title={'Spotlight: ' + ctx.names(ctx.groups[sp])}><p className="q">{ctx.one('pair', 'g' + sp) ? <Ans big d={ctx.one('pair', 'g' + sp).data} /> : 'This pair will explain their answer aloud.'}</p></Card>}</>}</>
   },
 }
 
@@ -152,7 +155,7 @@ export const OnionCells = () => <svg viewBox="0 0 640 300" className="figure" ro
     <rect x="-6" y="262" width="300" height="24" fill="#f7f1e3" /><text x="0" y="280" fontSize="15" fontFamily="Manrope, sans-serif" fill="#1b2a41">{p ? 'After 5 minutes in 10% salt solution' : 'In distilled water'}</text></g>)}
 </svg>
 export const Figure = ({ cfg }) => <figure>{cfg.image ? <img className="figure" src={cfg.image} alt={cfg.caption || 'Image for this activity'} /> : <OnionCells />}{cfg.caption && <figcaption>{cfg.caption}</figcaption>}</figure>
-const wonders = ctx => ctx.all('wonder').flatMap(e => e.data.text.split('\n').map(t => t.trim()).filter(Boolean).map((t, i) => ({ id: e.student_id + ':' + i, text: t, by: e.student_id, at: e.at })))
+const wonders = ctx => ctx.all('wonder').flatMap(e => e.data.ink ? [{ id: e.student_id + ':0', text: '', ink: e.data.ink, by: e.student_id, at: e.at }] : e.data.text.split('\n').map(t => t.trim()).filter(Boolean).map((t, i) => ({ id: e.student_id + ':' + i, text: t, by: e.student_id, at: e.at })))
 const sortW = (ctx, list) => { const pins = ctx.x.pins || []; const s = ctx.x.sort || 'new'
   return [...list].sort((a, b) => (pins.includes(b.id) - pins.includes(a.id)) || (s === 'az' ? a.text.localeCompare(b.text) : s === 'name' ? ctx.name(a.by).localeCompare(ctx.name(b.by)) : b.at - a.at)) }
 const STW = [['see', 'I see ...', 'Write only what you can observe. No explanations yet.'], ['think', 'I think ...', 'What do you think is going on? What makes you say that?'], ['wonder', 'I wonder ...', 'Write your questions, one per line. They go to the class Question Board.']]
@@ -165,18 +168,18 @@ const stw = {
     const todo = STW.slice(0, Math.min(ctx.pi, 2) + 1).find(([k]) => !ctx.one(k)), done = STW.filter(([k]) => ctx.one(k))
     return <><Figure cfg={ctx.cfg} />
       {todo && <AnswerBox key={todo[0]} ctx={ctx} kind={todo[0]} label={todo[1]} hint={todo[2]} />}
-      {done.length > 0 && <div className="cols3">{done.map(([k, l]) => <div key={k} className="locked"><div className="lbl"><Icon n="lock" /> {l}</div><p style={{ whiteSpace: 'pre-line' }}>{ctx.one(k).data.text}</p></div>)}</div>}
+      {done.length > 0 && <div className="cols3">{done.map(([k, l]) => <div key={k} className="locked"><div className="lbl"><Icon n="lock" /> {l}</div><p style={{ whiteSpace: 'pre-line' }}><Ans d={ctx.one(k).data} /></p></div>)}</div>}
       {!todo && ctx.phase.id !== 'board' && <Note>Locked. Wait for the next step.</Note>}
-      {ctx.phase.id === 'board' && (ctx.one('wonder') ? <Card title="Class Question Board"><ul className="list">{sortW(ctx, wonders(ctx)).map(w => <li key={w.id}><div>{(ctx.x.pins || []).includes(w.id) && <Tag tone="ok">Pinned</Tag>} {w.text} <By ctx={ctx} id={w.by} /></div></li>)}</ul></Card>
+      {ctx.phase.id === 'board' && (ctx.one('wonder') ? <Card title="Class Question Board"><ul className="list">{sortW(ctx, wonders(ctx)).map(w => <li key={w.id}><div>{(ctx.x.pins || []).includes(w.id) && <Tag tone="ok">Pinned</Tag>} <Ans d={w} /> <By ctx={ctx} id={w.by} /></div></li>)}</ul></Card>
         : <Note icon="lock">Lock your own wonder to see the class Question Board.</Note>)}</>
   },
   Teacher({ ctx }) { const pins = ctx.x.pins || []
     return <Card title="Question Board" right={<label className="inline">Sort <select value={ctx.x.sort || 'new'} onChange={e => ctx.setX({ sort: e.target.value })}><option value="new">Newest first</option><option value="az">A to Z</option><option value="name">By student</option></select></label>}>
       {!wonders(ctx).length && <p className="hint">Wonder questions appear here as students lock them.</p>}
-      <ul className="list">{sortW(ctx, wonders(ctx)).map(w => <li key={w.id}><div>{w.text} <By ctx={ctx} id={w.by} /></div>
+      <ul className="list">{sortW(ctx, wonders(ctx)).map(w => <li key={w.id}><div><Ans d={w} /> <By ctx={ctx} id={w.by} /></div>
         <button className={'btn sm' + (pins.includes(w.id) ? ' primary' : '')} aria-pressed={pins.includes(w.id)} onClick={() => ctx.setX({ pins: pins.includes(w.id) ? pins.filter(p => p !== w.id) : [...pins, w.id] })}><Icon n="pin" /> {pins.includes(w.id) ? 'Pinned' : 'Pin'}</button></li>)}</ul></Card> },
   Projector({ ctx }) { const id = ctx.phase.id
-    return id === 'board' ? <Card title="Question Board"><ul className="list big">{sortW(ctx, wonders(ctx)).map(w => <li key={w.id}><div>{(ctx.x.pins || []).includes(w.id) && <Tag tone="ok">Pinned</Tag>} {w.text}</div></li>)}</ul></Card>
+    return id === 'board' ? <Card title="Question Board"><ul className="list big">{sortW(ctx, wonders(ctx)).map(w => <li key={w.id}><div>{(ctx.x.pins || []).includes(w.id) && <Tag tone="ok">Pinned</Tag>} <Ans d={w} /></div></li>)}</ul></Card>
       : <><Figure cfg={ctx.cfg} /><Progress ctx={ctx} kind={id} label={`"${id}" notes locked`} /></> },
 }
 
