@@ -66,6 +66,7 @@ function ClassEditor({ cls, onSave, onDelete, praise }) {
 
 function Builder({ classes, sessions, onCreate }) {
   const [f, setF] = useState({ title: '', class_id: classes[0]?.id || 'new', mode: 'devices', playlist: [] }), [open, setOpen] = useState(null), [nc, setNc] = useState({ name: '', names: '' }), [busy, setBusy] = useState(false), [pad, setPad] = useState(false)
+  useEffect(() => { if (f.class_id === 'new' && classes.length && !nc.name && !nc.names) setF(p => ({ ...p, class_id: classes[0].id })) }, [classes.length]) // classes can arrive after this form opens
   const isNew = f.class_id === 'new', roster = parseRoster(nc.names), dup = isNew && classes.some(c => c.name.trim().toLowerCase() === nc.name.trim().toLowerCase())
   const setPl = pl => setF(p => ({ ...p, playlist: pl })), mv = (i, d) => { const pl = [...f.playlist];[pl[i], pl[i + d]] = [pl[i + d], pl[i]]; setPl(pl); setOpen(null) }
   const ok = f.title.trim() && f.playlist.length && (isNew ? nc.name.trim() && roster.length >= 2 && !dup : f.class_id)

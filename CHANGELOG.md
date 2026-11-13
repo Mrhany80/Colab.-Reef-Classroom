@@ -6,6 +6,8 @@
 **No more blank page.** If the app was updated while a page was open, the page now loads the new version by itself. If a screen fails
 for any other reason, it shows a short message with Reload and "Clear unfinished boards on this device" instead of going blank.
 Unfinished boards saved on a device by an older version are checked before they are reopened.
+The class whiteboard can also be opened from the lobby, before the session starts.
+New session: the class list no longer starts on "Add a new class" when your classes load a moment late.
 
 ## 1.4.2
 

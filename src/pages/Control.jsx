@@ -94,7 +94,7 @@ export function Control({ code }) {
         {ended ? <Card title="This session has finished"><p>Open the report to see participation, answers and praise.</p><a className="btn primary" href={'#/report/' + session.code}>Open report</a></Card>
         : st.lobby ? <Card title="Lobby" tone="coral"><div className="qr-row"><Qr code={session.code} size={200} /><div><p>{session.mode === 'one' ? 'One-device mode: students do not need to join. Any who have a device can still scan the code.' : `${joined.size} of ${cls.students.length} students have joined.`}</p>
             <p>Students scan the QR code, or open the site and enter <b className="codetext">{session.code}</b>. It works on any Wi-Fi network or mobile data.</p>
-            <div className="row wrap"><button className="btn primary" onClick={() => go(0)}><Icon n="play" /> Start session</button><button className="btn" onClick={() => setQr(true)}>Bigger QR</button><button className="btn" onClick={() => setPresent(true)}><Icon n="screen" /> Show projector view</button></div></div></div></Card>
+            <div className="row wrap"><button className="btn primary" onClick={() => go(0)}><Icon n="play" /> Start session</button><button className="btn" onClick={() => setBoard(true)}><Icon n="edit" /> Open class whiteboard</button><button className="btn" onClick={() => setQr(true)}>Bigger QR</button><button className="btn" onClick={() => setPresent(true)}><Icon n="screen" /> Show projector view</button></div></div></div></Card>
         : <><Card title={`${mod.name}: ${phase.name}`} right={<Timer st={st} />}>
             <ol className="phases">{mod.phases.map((p, i) => <li key={p.id}><button className={'ph' + (i === st.phase ? ' on' : '')} aria-current={i === st.phase ? 'step' : undefined} onClick={() => go(i)}>{i + 1}. {p.name}</button></li>)}</ol>
             <p className="instr">{phase.proj}</p>
@@ -125,7 +125,7 @@ export function Control({ code }) {
           {session.mode !== 'one' && <span className={'dot' + (joined.has(s.id) ? ' on' : '')}>{joined.has(s.id) ? 'joined' : 'not joined'}</span>}</li>)}</ul>
         <p className="hint">Tap a name to record that the student took part in this phase. "Enter" lets you type a response for a student who has no device.</p></Card></div>
     </main>
-    {board && !st.lobby && <ClassBoard title={`${mod.name}, ${phase.name}`} prompt={ctx.cfg.question || ctx.cfg.statement || ctx.cfg.prompt || ctx.cfg.focus || ctx.cfg.topic} draftKey={`reef:cb:${session.id}:${st.step}`} groups={ctx.groups.map((g, i) => `${mod.group?.size === 2 ? 'Pair' : 'Group'} ${i + 1}: ${ctx.names(g)}`)} onClose={() => setBoard(false)} onSave={d => ctx.save('board', { ...d, phase: phase.name }, uid())} />}
+    {board && <ClassBoard title={st.lobby ? `${session.title}, before the start` : `${mod.name}, ${phase.name}`} prompt={ctx.cfg.question || ctx.cfg.statement || ctx.cfg.prompt || ctx.cfg.focus || ctx.cfg.topic} draftKey={`reef:cb:${session.id}:${st.step}`} groups={ctx.groups.map((g, i) => `${mod.group?.size === 2 ? 'Pair' : 'Group'} ${i + 1}: ${ctx.names(g)}`)} onClose={() => setBoard(false)} onSave={d => ctx.save('board', { ...d, phase: st.lobby ? 'Before the start' : phase.name }, uid())} />}
     {qr && <JoinQr code={session.code} cls={cls.name} onClose={() => setQr(false)} />}
     {as && <Dialog title={`Entering for ${as.name} · ${cls.name}`} onClose={() => setAs(null)}><div className="student in-dlg"><StudentBody live={live} me={as} /></div></Dialog>}
   </div>
