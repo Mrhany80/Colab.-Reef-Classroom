@@ -18,9 +18,19 @@ device. Open the teacher dashboard in one tab and join as students in other tabs
    `VITE_SUPABASE_ANON_KEY`, then re-run the "Publish web app" workflow.
 4. Open the site, choose "I am a teacher", create a teacher account. Three sample classes are seeded.
 
-## Publishing
-Every push to `main` rebuilds the app and publishes it on GitHub Pages
+## Link
+**https://mrhany80.github.io/Colab.-Reef-Classroom/** — published by GitHub Pages on every push to `main`
 (`.github/workflows/pages.yml`). One-time step: Settings > Pages > Source: **GitHub Actions**.
+Students open the same address and enter the session code, or scan the QR code on the projector.
+
+## Publishing a release
+1. Raise `version` in `package.json` and add a `## <version>` section to `CHANGELOG.md`.
+2. Push to `main`.
+3. `.github/workflows/release.yml` sees a version with no release, builds the web app, creates the tag `v<version>`
+   and publishes the release with the notes from `CHANGELOG.md` and `CoLab-Reef-<version>.zip` (the built site).
+   To rebuild a release that exists: **Actions > Release > Run workflow**.
+
+The version is shown at the bottom of the first screen.
 
 ## Routes
 `#/teacher` dashboard · `#/control/CODE` teacher control · `#/projector/CODE` projector ·

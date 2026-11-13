@@ -11,6 +11,7 @@ export function Landing() {
       <a className="tile" href="#/teacher"><Icon n="screen" s={30} /><b>I am a teacher</b><span>Classes, sessions and reports</span></a>
     </div>
     {!LIVE && <p className="hint on-dark">Demo mode: data stays in this browser and syncs between tabs on this device. Connect Supabase to run a real class.</p>}
+    <p className="hint on-dark">Version {__VERSION__}</p>
   </main>
 }
 

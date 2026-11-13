@@ -1,0 +1,58 @@
+# Publishes a release by itself.
+# Whenever main changes, this checks the version in package.json. If there is no GitHub release for it yet,
+# it builds the web app, zips it, creates the tag v<version> and publishes the release with the notes from CHANGELOG.md.
+#
+# To publish a version: raise "version" in package.json, add a "## <version>" section to CHANGELOG.md, and push to main.
+# To rebuild a release that already exists: Actions → Release → Run workflow.
+name: Release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then echo "build=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if gh release view "v$V" >/dev/null 2>&1; then echo "build=false" >> "$GITHUB_OUTPUT"; echo "v$V is already released, nothing to do"; else echo "build=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@v4
+        if: steps.v.outputs.build == 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build and zip the web app
+        if: steps.v.outputs.build == 'true'
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          npm ci
+          npm run build
+          cd dist && zip -r "../CoLab-Reef-${{ steps.v.outputs.version }}.zip" .
+      - name: Release notes from CHANGELOG.md
+        if: steps.v.outputs.build == 'true'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: node -e "const s=require('fs').readFileSync('CHANGELOG.md','utf8');const v=process.env.VERSION;const i=s.indexOf('## '+v);if(i<0){console.log('CoLab Reef '+v);process.exit(0)}const r=s.slice(i+('## '+v).length);const j=r.search(/\n## /);console.log((j<0?r:r.slice(0,j)).trim())" > notes.md
+      - name: Publish the release
+        if: steps.v.outputs.build == 'true'
+        run: |
+          TAG="v${{ steps.v.outputs.version }}"; Z="CoLab-Reef-${{ steps.v.outputs.version }}.zip"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$Z" --clobber
+            gh release edit "$TAG" --notes-file notes.md --latest
+          else
+            gh release create "$TAG" "$Z" --target "$GITHUB_SHA" --title "CoLab Reef $TAG" --notes-file notes.md --latest
+          fi
