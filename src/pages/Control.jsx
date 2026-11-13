@@ -6,7 +6,8 @@ import { KIND, summ, counts } from '../lib/summ.js'
 import { uid, store } from '../lib/store.js'
 import { Timer, Card, Icon, Tag, Note, useNow } from '../components/ui.jsx'
 import { StudentBody, useReefPoints } from './Student.jsx'
-import { MODE } from './Projector.jsx'
+import { MODE, JoinQr } from './Projector.jsx'
+import { Ans } from '../components/Ink.jsx'
 import { Brand } from './Landing.jsx'
 
 const SMALL = ['joined the session on time', 'listened to your partner without interrupting', 'asked a question when you were unsure', 'wrote your first idea down', 'stayed with a hard question until the timer ended', 'helped a teammate find the right row in the data']
@@ -52,7 +53,7 @@ function PraisePanel({ live, ctx, triggers }) {
 }
 
 export function Control({ code }) {
-  const live = useLive(code), sent = useRef(new Set()), [sel, setSel] = useState(null), [as, setAs] = useState(null), [tab, setTab] = useState('run')
+  const live = useLive(code), sent = useRef(new Set()), [sel, setSel] = useState(null), [as, setAs] = useState(null), [tab, setTab] = useState('run'), [qr, setQr] = useState(false)
   const points = useReefPoints(live.session, live.entries)
   const triggers = useMemo(() => live.session && live.cls ? detect(live.session, live.cls, live.entries) : [], [live.entries.length, live.session, live.cls])
   const ready = live.ready && live.session && live.cls
@@ -84,7 +85,7 @@ export function Control({ code }) {
   const ended = session.status === 'ended'
   return <div className="teacher">
     <header className="top"><a href="#/teacher" aria-label="Back to dashboard"><Brand small /></a><div className="top-m"><b>{session.title}</b><span>{cls.name} · {MODE[session.mode]} · {points} reef points</span></div>
-      <div className="row wrap"><span className="join-s">Code <b>{session.code}</b></span><a className="btn sm" href={'#/projector/' + session.code} target="_blank" rel="noreferrer"><Icon n="screen" /> Open projector view</a><a className="btn sm" href={'#/report/' + session.code}><Icon n="down" /> Report</a></div></header>
+      <div className="row wrap"><span className="join-s">Code <b>{session.code}</b></span>{session.mode !== 'one' && <button className="btn sm" onClick={() => setQr(true)}>Join QR</button>}<a className="btn sm" href={'#/projector/' + session.code} target="_blank" rel="noreferrer"><Icon n="screen" /> Open projector view</a><a className="btn sm" href={'#/report/' + session.code}><Icon n="down" /> Report</a></div></header>
     <nav className="playlist" aria-label="Lesson playlist">{session.playlist.map((it, i) => <button key={i} className={'pl' + (i === st.step && !st.lobby ? ' on' : '')} aria-current={i === st.step && !st.lobby ? 'step' : undefined} onClick={() => go(0, null, i)} disabled={ended}><span>{i + 1}</span> {MODULES[it.type].name}<small>{it.config.topic}</small></button>)}</nav>
     <div className="tabs" role="tablist">{[['run', 'Run'], ['praise', `Praise (${triggers.length})`], ['roster', 'Roster']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
     <main id="main" className={'grid tab-' + tab}>
@@ -108,10 +109,10 @@ export function Control({ code }) {
             <div className="groups">{ctx.groups.map((g, i) => <div key={i} className="group"><b>{i + 1}</b><div className="row wrap">{g.map(id => <button key={id} className={'chip' + (sel === id ? ' on' : '')} aria-pressed={sel === id} onClick={() => setSel(sel === id ? null : id)}>{ctx.name(id)}</button>)}</div>
               {sel && !g.includes(sel) && <button className="btn sm primary" onClick={() => move(i)}>Move {ctx.name(sel)} here</button>}</div>)}</div>
             {ctx.groups.length > 0 && <p className="hint">To set groups yourself, tap a name, then choose its new group.</p>}</Card>}
-          {ctx.all('board').length > 0 && <Card title="Class whiteboards from the smartboard" right={<Tag>{ctx.all('board').length}</Tag>}><div className="cols2">{ctx.all('board').sort((a, b) => a.at - b.at).map(b => <figure key={b.id}><img className="figure" src={b.data.png} alt={'Class whiteboard saved during ' + b.data.phase} /><figcaption>{b.data.phase}{b.data.texts?.length ? ': ' + b.data.texts.join(' | ') : ''}</figcaption></figure>)}</div></Card>}
+          {ctx.all('board').length > 0 && <Card title="Class whiteboards from the smartboard" right={<Tag>{ctx.all('board').length}</Tag>}><div className="cols2">{ctx.all('board').sort((a, b) => a.at - b.at).map(b => <figure key={b.id}><img className="figure" src={b.data.png} alt={'Class whiteboard saved during ' + b.data.phase} /><figcaption>{b.data.phase}{b.data.texts?.length ? ': ' + b.data.texts.join(' | ') : ''}{b.data.audio && <audio controls src={b.data.audio} aria-label="Recording saved with this board" />}</figcaption></figure>)}</div></Card>}
           <Card title="Responses in this activity" right={<Tag>Teacher only</Tag>}><div className="scroll"><table className="data"><thead><tr><th>Student</th><th>Responses</th></tr></thead><tbody>
             {cls.students.map(s => { const es = ctx.here.filter(e => e.student_id === s.id && counts(e) && e.kind !== 'msg').sort((a, b) => a.at - b.at), msgs = ctx.here.filter(e => e.student_id === s.id && e.kind === 'msg').length
-              return <tr key={s.id}><th>{s.name}{session.mode !== 'one' && !joined.has(s.id) && <span className="hint"> (not joined)</span>}</th><td>{es.map(e => <div key={e.id}><span className="hint">{KIND[e.kind] || e.kind}:</span> {e.data.ink ? <img className="inkans" src={e.data.ink} alt="Handwritten answer" /> : summ(e)}</div>)}{msgs > 0 && <div className="hint">{msgs} room message{msgs > 1 ? 's' : ''}</div>}{!es.length && !msgs && <span className="hint">Nothing yet</span>}</td></tr> })}</tbody></table></div></Card></>}
+              return <tr key={s.id}><th>{s.name}{session.mode !== 'one' && !joined.has(s.id) && <span className="hint"> (not joined)</span>}</th><td>{es.map(e => <div key={e.id}><span className="hint">{KIND[e.kind] || e.kind}:</span> {e.data.ink || e.data.photo || e.data.audio ? <Ans d={e.data} /> : summ(e)}</div>)}{msgs > 0 && <div className="hint">{msgs} room message{msgs > 1 ? 's' : ''}</div>}{!es.length && !msgs && <span className="hint">Nothing yet</span>}</td></tr> })}</tbody></table></div></Card></>}
       </div>
       <div className="g-praise"><PraisePanel live={live} ctx={ctx} triggers={triggers} /></div>
       <div className="g-roster"><Card title="Roster" right={<Tag>{session.mode === 'one' ? 'Tap to record participation' : `${joined.size} joined`}</Tag>}>
@@ -121,6 +122,7 @@ export function Control({ code }) {
           {session.mode !== 'one' && <span className={'dot' + (joined.has(s.id) ? ' on' : '')}>{joined.has(s.id) ? 'joined' : 'not joined'}</span>}</li>)}</ul>
         <p className="hint">Tap a name to record that the student took part in this phase. "Enter" lets you type a response for a student who has no device.</p></Card></div>
     </main>
+    {qr && <JoinQr code={session.code} cls={cls.name} onClose={() => setQr(false)} />}
     {as && <Dialog title={`Entering for ${as.name} · ${cls.name}`} onClose={() => setAs(null)}><div className="student in-dlg"><StudentBody live={live} me={as} /></div></Dialog>}
   </div>
 }

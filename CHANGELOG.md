@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.4.0
+
+### New on the class whiteboard
+**Text** — tap anywhere with the Text tool and type. Works inside each divided area.
+**Sticky notes, highlighter, lines and arrows** — plus a plain, grid or lined background.
+**Photos** — add a photo or picture from the device, move it with the Move tool, make it bigger or smaller, and write over it.
+**Record audio** — record up to 90 seconds; the recording is saved with the board and plays in the teacher's view and the report.
+"Read handwriting into text" now also collects the typed text of each area.
+
+### Joining
+**Join QR at any time** — "Show QR" on the projector and "Join QR" in the teacher's view open a large QR code with the code and link,
+plus Copy join link, Download QR and Print. Students can join from any Wi-Fi network or mobile data; they do not need the school network.
+
+### Session dashboard
+The report is now a dashboard: five headline tiles, filters for activity, student and praise behaviour, bar charts and a participation
+matrix that filter the whole page when you select a bar, a name or a column, two ring charts, and the detail tables underneath.
+CSV and PDF export are unchanged. Students are always listed in roster order, never ranked.
+
+### Fixed
+"Save board and text to this activity" did nothing after "Read handwriting into text". It now saves the board, the text and any recording.
+
+### New in answer boxes
+**Add a photo** and **Record audio** (up to 60 seconds) beside "Write by hand". An answer can be text, handwriting, a photo, audio or a mix.
+
 ## 1.3.0
 
 ### New
