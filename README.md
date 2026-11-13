@@ -11,12 +11,10 @@ npm run dev
 With no `.env` the app runs in **demo mode**: data lives in the browser and syncs between tabs on one
 device. Open the teacher dashboard in one tab and join as students in other tabs.
 
-## Go live (real classroom, many devices)
-1. Create a Supabase project. In the SQL editor, run `supabase/schema.sql`.
-2. Copy `.env.example` to `.env` and paste the project URL and anon key.
-3. On GitHub: Settings > Secrets and variables > Actions > Variables, add `VITE_SUPABASE_URL` and
-   `VITE_SUPABASE_ANON_KEY`, then re-run the "Publish web app" workflow.
-4. Open the site, choose "I am a teacher", create a teacher account. Three sample classes are seeded.
+## Live database
+The published site uses the Supabase project in `.env.production` (address and publishable key; both are public values).
+One-time setup of a project: run `supabase/schema.sql` in its SQL editor. To use a different project, change the two
+values in `.env.production` and push. For local development against it, copy `.env.production` to `.env`.
 
 ## Link
 **https://mrhany80.github.io/Colab.-Reef-Classroom/** — published by GitHub Pages on every push to `main`

@@ -46,7 +46,7 @@ function supaStore() {
     auth: {
       user: async () => (await sb.auth.getSession()).data.session?.user || null,
       signIn: (email, password) => sb.auth.signInWithPassword({ email, password }),
-      signUp: (email, password) => sb.auth.signUp({ email, password }),
+      signUp: (email, password) => sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } }),
       signOut: () => sb.auth.signOut(),
     },
     listClasses: async () => {

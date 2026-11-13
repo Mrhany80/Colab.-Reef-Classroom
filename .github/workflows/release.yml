@@ -34,9 +34,6 @@ jobs:
           cache: npm
       - name: Build and zip the web app
         if: steps.v.outputs.build == 'true'
-        env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
         run: |
           npm ci
           npm run build
