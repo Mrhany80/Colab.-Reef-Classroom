@@ -7,7 +7,7 @@ import { uid, store } from '../lib/store.js'
 import { Timer, Card, Icon, Tag, Note, useNow } from '../components/ui.jsx'
 import { StudentBody, useReefPoints } from './Student.jsx'
 import { MODE, JoinQr } from './Projector.jsx'
-import { Ans } from '../components/Ink.jsx'
+import { Ans, ClassBoard } from '../components/Ink.jsx'
 import { Brand } from './Landing.jsx'
 
 const SMALL = ['joined the session on time', 'listened to your partner without interrupting', 'asked a question when you were unsure', 'wrote your first idea down', 'stayed with a hard question until the timer ended', 'helped a teammate find the right row in the data']
@@ -53,7 +53,7 @@ function PraisePanel({ live, ctx, triggers }) {
 }
 
 export function Control({ code }) {
-  const live = useLive(code), sent = useRef(new Set()), [sel, setSel] = useState(null), [as, setAs] = useState(null), [tab, setTab] = useState('run'), [qr, setQr] = useState(false)
+  const live = useLive(code), sent = useRef(new Set()), [sel, setSel] = useState(null), [as, setAs] = useState(null), [tab, setTab] = useState('run'), [qr, setQr] = useState(false), [board, setBoard] = useState(false)
   const points = useReefPoints(live.session, live.entries)
   const triggers = useMemo(() => live.session && live.cls ? detect(live.session, live.cls, live.entries) : [], [live.entries.length, live.session, live.cls])
   const ready = live.ready && live.session && live.cls
@@ -99,6 +99,7 @@ export function Control({ code }) {
             <div className="row wrap" role="group" aria-label="Phase controls">
               {left != null && (st.pausedLeft != null ? <button className="btn" onClick={() => live.patch({ endsAt: Date.now() + st.pausedLeft, pausedLeft: null })}><Icon n="play" /> Resume</button> : <button className="btn" onClick={() => live.patch({ pausedLeft: left, endsAt: null })}><Icon n="pause" /> Pause</button>)}
               {left != null && [30, 60].map(s => <button key={s} className="btn" onClick={() => live.patch(st.pausedLeft != null ? { pausedLeft: st.pausedLeft + s * 1000 } : { endsAt: Math.max(Date.now(), st.endsAt) + s * 1000 })}><Icon n="plus" /> {s === 30 ? '30 seconds' : '1 minute'}</button>)}
+              <button className="btn" onClick={() => setBoard(true)}><Icon n="edit" /> Open class whiteboard</button>
               <button className="btn" onClick={() => go(st.phase)}>Restart phase</button>
               {!lastPhase ? <button className="btn primary" onClick={() => go(st.phase + 1)}><Icon n="skip" /> Next phase</button> : !lastStep ? <button className="btn primary" onClick={() => go(0, null, st.step + 1)}><Icon n="skip" /> Next activity</button>
                 : <button className="btn primary" onClick={() => confirm('End the session for everyone? Students keep their praise; the report stays available.') && store.saveSession({ ...live.session, status: 'ended' })}>End session</button>}
@@ -122,6 +123,7 @@ export function Control({ code }) {
           {session.mode !== 'one' && <span className={'dot' + (joined.has(s.id) ? ' on' : '')}>{joined.has(s.id) ? 'joined' : 'not joined'}</span>}</li>)}</ul>
         <p className="hint">Tap a name to record that the student took part in this phase. "Enter" lets you type a response for a student who has no device.</p></Card></div>
     </main>
+    {board && !st.lobby && <ClassBoard title={`${mod.name}, ${phase.name}`} prompt={ctx.cfg.question || ctx.cfg.statement || ctx.cfg.prompt || ctx.cfg.focus || ctx.cfg.topic} draftKey={`reef:cb:${session.id}:${st.step}`} groups={ctx.groups.map((g, i) => `${mod.group?.size === 2 ? 'Pair' : 'Group'} ${i + 1}: ${ctx.names(g)}`)} onClose={() => setBoard(false)} onSave={d => ctx.save('board', { ...d, phase: phase.name }, uid())} />}
     {qr && <JoinQr code={session.code} cls={cls.name} onClose={() => setQr(false)} />}
     {as && <Dialog title={`Entering for ${as.name} · ${cls.name}`} onClose={() => setAs(null)}><div className="student in-dlg"><StudentBody live={live} me={as} /></div></Dialog>}
   </div>

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.1
+
+### Fixed
+Typed text on the class whiteboard no longer runs across the dividing lines or over other areas. Text now wraps inside the area
+where it was tapped, very long words are broken, and text stays below the area label. Moving a text re-fits it to its new area.
+
+### Changed
+**Class whiteboard in the teacher's view** — every activity has "Open class whiteboard" in the phase controls of the control page,
+so the board opens on the same page with no new tab. It is still available on the projector view.
+
 ## 1.4.0
 
 ### New on the class whiteboard

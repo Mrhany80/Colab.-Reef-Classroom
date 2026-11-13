@@ -14,7 +14,13 @@ export const areaOf = (pt, w, h, n) => { const [c, r] = GRIDS[n]; return Math.mi
 
 const imgs = new Map()
 const wrap = (t, n) => { const out = []; let l = ''; t.split(/\s+/).forEach(w => { if ((l + ' ' + w).trim().length > n && l) { out.push(l); l = w } else l = (l + ' ' + w).trim() }); if (l) out.push(l); return out }
-const boxOf = it => it.t === 'img' ? [it.x, it.y, it.w, it.h] : it.note ? [it.x, it.y, 200, 40 + wrap(it.s, 18).length * 24] : [it.x, it.y - 4, Math.max(40, it.s.length * it.size * 0.58), it.size * 1.4]
+// Typed text wraps inside its area (or the board), breaking very long words, so it never runs into the next area.
+const meas = document.createElement('canvas').getContext('2d')
+export function wrapW(t, size, mw) { meas.font = `600 ${size}px Manrope, sans-serif`; const W = x => meas.measureText(x).width, out = []; let l = ''
+  const push = w => { if (!l) l = w; else if (W(l + ' ' + w) <= mw) l += ' ' + w; else { out.push(l); l = w } }
+  t.split(/\s+/).filter(Boolean).forEach(w => { while (W(w) > mw && w.length > 1) { let n = w.length; while (n > 1 && W(w.slice(0, n)) > mw) n--; if (l) { out.push(l); l = '' } out.push(w.slice(0, n)); w = w.slice(n) } push(w) }); if (l) out.push(l); return out.length ? out : [''] }
+const linesOf = it => wrapW(it.s, it.size, it.mw || 4000)
+const boxOf = it => it.t === 'img' ? [it.x, it.y, it.w, it.h] : it.note ? [it.x, it.y, 200, 40 + wrap(it.s, 18).length * 24] : [it.x, it.y - 4, Math.min(it.mw || 4000, Math.max(40, it.s.length * it.size * 0.58)), linesOf(it).length * it.size * 1.3 + 6]
 const inBox = (it, p) => { const [x, y, w, h] = boxOf(it); return p[0] >= x && p[0] <= x + w && p[1] >= y && p[1] <= y + h }
 // Draws every item: photos, typed text, sticky notes, pen and highlighter strokes, lines and arrows.
 function paint(g, items, k, x0, y0, again) {
@@ -23,7 +29,7 @@ function paint(g, items, k, x0, y0, again) {
   items.filter(it => it.t !== 'img').forEach(it => {
     if (it.t === 'text') { g.textBaseline = 'top'
       if (it.note) { const ls = wrap(it.s, 18); g.fillStyle = '#fff3a6'; g.fillRect(X(it.x), Y(it.y), 200 * k, (40 + ls.length * 24) * k); g.fillStyle = '#e6d36b'; g.fillRect(X(it.x), Y(it.y), 200 * k, 8 * k); g.fillStyle = '#14263d'; g.font = `600 ${18 * k}px Manrope, sans-serif`; ls.forEach((l, i) => g.fillText(l, X(it.x + 12), Y(it.y + 22 + i * 24))) }
-      else { g.fillStyle = it.c; g.font = `600 ${it.size * k}px Manrope, sans-serif`; g.fillText(it.s, X(it.x), Y(it.y)) } return }
+      else { g.save(); if (it.bottom) { g.beginPath(); g.rect(X(it.x) - 2, Y(it.top) - 2, it.mw * k + 4, (it.bottom - it.top) * k + 4); g.clip() } g.fillStyle = it.c; g.font = `600 ${it.size * k}px Manrope, sans-serif`; linesOf(it).forEach((l, i) => g.fillText(l, X(it.x), Y(it.y + i * it.size * 1.3))); g.restore() } return }
     g.globalAlpha = it.a || 1; g.strokeStyle = it.c; g.lineWidth = it.w * k; g.beginPath(); it.pts.forEach((p, i) => g[i ? 'lineTo' : 'moveTo'](X(p[0]), Y(p[1]))); if (it.pts.length === 1) g.lineTo(X(it.pts[0][0]) + 0.1, Y(it.pts[0][1])); g.stroke()
     if (it.kind === 'arrow' && it.pts.length > 1) { const [p, q] = [it.pts[0], it.pts[it.pts.length - 1]], an = Math.atan2(q[1] - p[1], q[0] - p[0]), L = (10 + it.w * 2) * k; g.beginPath(); [-0.45, 0.45].forEach(d => { g.moveTo(X(q[0]), Y(q[1])); g.lineTo(X(q[0]) - L * Math.cos(an + d), Y(q[1]) - L * Math.sin(an + d)) }); g.stroke() }
     g.globalAlpha = 1 })
@@ -54,11 +60,21 @@ export function useInk({ draftKey, tools, split = 1, labels = [] } = {}) {
     onPointerMove: e => { const st = cur.current.get(e.pointerId); if (!st) return; if (st === 'erase') return eraseAt(pt(e))
       if (st.move) { const p = pt(e); st.move.x = p[0] - st.dx; st.move.y = p[1] - st.dy; return redraw() }
       if (st.kind) st.pts[1] = pt(e); else (e.getCoalescedEvents ? e.getCoalescedEvents() : [e]).forEach(x => st.pts.push(pt(x))); redraw() },
-    onPointerUp: e => { cur.current.delete(e.pointerId); keep() }, onPointerCancel: e => { cur.current.delete(e.pointerId); keep() },
+    onPointerUp: e => { const st = cur.current.get(e.pointerId); if (st && st.move && st.move.t === 'text') { Object.assign(st.move, fitText(st.move.x, st.move.y, st.move.note)); settle(st.move); redraw() } cur.current.delete(e.pointerId); keep() }, onPointerCancel: e => { cur.current.delete(e.pointerId); keep() },
   }
   const clear = () => { strokes.current = []; cur.current.clear(); setSel(null); touch() }
   const undo = () => { strokes.current.pop(); setSel(null); touch() }
-  const commit = () => { if (edit && edit.s.trim()) strokes.current.push({ t: 'text', x: edit.x, y: edit.y, s: edit.s.trim(), c: pen.c, size: pen.w >= 10 ? 34 : pen.w >= 6 ? 26 : 20, note: edit.note }); setEdit(null); touch() }
+  // Where a typed text may go: the area it was tapped in. It starts at least 200px from that area's right edge.
+  const fitText = (x, y, note) => { const r = cv.current.getBoundingClientRect(), [c, rw] = GRIDS[grid.current.split], aw = r.width / c, ah = r.height / rw, ax = Math.min(c - 1, Math.floor(x / aw)) * aw, ay = Math.min(rw - 1, Math.floor(y / ah)) * ah
+    const need = Math.min(note ? 204 : 200, aw - 16), nx = Math.max(ax + 8, Math.min(x, ax + aw - 8 - need)), top = ay + (grid.current.split > 1 ? 34 : 4); return { x: nx, y: Math.max(top, Math.min(y, ay + ah - 40)), mw: ax + aw - 8 - nx, top, bottom: ay + ah - 6, left: ax + 8, full: aw - 16 } }
+  // Keep a text clear of other texts in its area and, where it fits, above the area's bottom edge.
+  const settle = it => { const hit = o => { const a = boxOf(it), b = boxOf(o); return a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3] }, others = strokes.current.filter(o => o !== it && o.t === 'text')
+    for (let n = 0; n < 12; n++) { const o = others.find(hit); if (!o) break; const b = boxOf(o); it.y = b[1] + b[3] + 10 }
+    const over = () => it.y + boxOf(it)[3] > it.bottom
+    if (!it.note && over()) { const size = it.size; while (over() && it.size > 16) it.size -= 2 // shrink long text until it fits its area
+      if (over()) { it.size = size; it.x = it.left; it.mw = it.full; for (let n = 0; n < 12; n++) { const o = others.find(hit); if (!o) break; const b = boxOf(o); it.y = b[1] + b[3] + 10 } while (over() && it.size > 14) it.size -= 2 } } // still too long: use the full width of the area
+    const h = boxOf(it)[3]; if (it.y + h > it.bottom) { const up = Math.max(it.top, it.bottom - h); if (!others.some(o => { const y0 = it.y; it.y = up; const r = hit(o); it.y = y0; return r })) it.y = up } return it }
+  const commit = () => { if (edit && edit.s.trim()) { const f = fitText(edit.x, edit.y, edit.note), it = { t: 'text', ...f, s: edit.s.trim(), c: pen.c, size: pen.w >= 10 ? 34 : pen.w >= 6 ? 26 : 20, note: edit.note }; strokes.current.push(settle(it)) } setEdit(null); touch() }
   const addPhoto = file => { if (!file) return; const im = new Image(); im.onload = () => { const k = Math.min(1, 1000 / im.width), c = document.createElement('canvas'); c.width = im.width * k; c.height = im.height * k; c.getContext('2d').drawImage(im, 0, 0, c.width, c.height)
     const r = cv.current.getBoundingClientRect(), w = Math.min(r.width * 0.45, c.width), it = { t: 'img', src: c.toDataURL('image/jpeg', 0.8), x: 30 + (strokes.current.filter(i => i.t === 'img').length % 4) * 40, y: 40, w, h: w * c.height / c.width }; strokes.current.push(it); setSel(it); setPen(p => ({ ...p, tool: 'move' })); touch() }; im.src = URL.createObjectURL(file) }
   const scale = f => { if (!sel) return; if (sel.t === 'img') { sel.w *= f; sel.h *= f } else if (!sel.note) sel.size = Math.max(14, Math.min(90, sel.size * f)); touch() }
@@ -78,7 +94,7 @@ export function useInk({ draftKey, tools, split = 1, labels = [] } = {}) {
       {sel && !sel.note && <><button type="button" className="btn sm" onClick={() => scale(1.2)}>Bigger</button><button type="button" className="btn sm" onClick={() => scale(1 / 1.2)}>Smaller</button></>}</>}
     <button type="button" className="btn sm" disabled={!has} onClick={undo}>Undo</button><button type="button" className="btn sm" disabled={!has} onClick={clear}>Clear</button></div>
   // Typing box that appears where the board was tapped with the Text or Sticky note tool.
-  const editor = edit && <form className="ink-edit" style={{ left: Math.max(0, edit.x), top: Math.max(0, edit.y) }} onSubmit={e => { e.preventDefault(); commit() }}>
+  const editor = edit && <form className="ink-edit" style={{ left: Math.max(0, Math.min(edit.x, (cv.current?.getBoundingClientRect().width || 600) - 420)), top: Math.max(0, edit.y) }} onSubmit={e => { e.preventDefault(); commit() }}>
     <label className="sr" htmlFor="ink-t">{edit.note ? 'Sticky note text' : 'Text'}</label><input id="ink-t" autoFocus value={edit.s} placeholder={edit.note ? 'Sticky note' : 'Type here'} onChange={e => setEdit({ ...edit, s: e.target.value })} onKeyDown={e => e.key === 'Escape' && setEdit(null)} />
     <button className="btn sm primary">Add</button><button type="button" className="btn sm" onClick={() => setEdit(null)}>Cancel</button></form>
   const size = () => { const r = cv.current.getBoundingClientRect(); return [r.width, r.height] }
