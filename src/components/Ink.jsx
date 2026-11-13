@@ -4,11 +4,20 @@ import { COLORS, readInk, groupInk, inkImage } from './NamePad.jsx'
 import { uid } from '../lib/store.js'
 
 // Shared handwriting surface: every finger or pen gets its own stroke, so several people can write at once.
-export function useInk({ draftKey, tools } = {}) {
-  const cv = useRef(), strokes = useRef([]), cur = useRef(new Map())
+export const GRIDS = { 1: [1, 1], 2: [2, 1], 3: [3, 1], 4: [2, 2], 6: [3, 2], 8: [4, 2] }
+// Divider lines and a label for each writing area, drawn under the ink (and included in saved pictures).
+function drawGrid(g, w, h, n, labels, k = 1) { if (n < 2) return; const [c, r] = GRIDS[n]; g.save(); g.strokeStyle = '#5b6b80'; g.lineWidth = 3 * k; g.setLineDash([10 * k, 8 * k]); g.beginPath()
+  for (let i = 1; i < c; i++) { g.moveTo(w * i / c, 0); g.lineTo(w * i / c, h) } for (let j = 1; j < r; j++) { g.moveTo(0, h * j / r); g.lineTo(w, h * j / r) } g.stroke(); g.setLineDash([])
+  g.font = `700 ${Math.round(15 * k)}px Manrope, sans-serif`; g.textBaseline = 'top'
+  for (let i = 0; i < n; i++) { const x = (i % c) * w / c + 8 * k, y = Math.floor(i / c) * h / r + 6 * k, t = labels[i] || String(i + 1), tw = Math.min(g.measureText(t).width, w / c - 24 * k); g.fillStyle = '#12304f'; g.fillRect(x, y, tw + 14 * k, 24 * k); g.fillStyle = '#fff'; g.fillText(t, x + 7 * k, y + 5 * k, w / c - 24 * k) } g.restore() }
+export const areaOf = (pt, w, h, n) => { const [c, r] = GRIDS[n]; return Math.min(r - 1, Math.floor(pt[1] / (h / r))) * c + Math.min(c - 1, Math.floor(pt[0] / (w / c))) }
+
+export function useInk({ draftKey, tools, split = 1, labels = [] } = {}) {
+  const cv = useRef(), strokes = useRef([]), cur = useRef(new Map()), grid = useRef({ split, labels }); grid.current = { split, labels }
   const [has, setHas] = useState(false), [pen, setPen] = useState({ c: COLORS[0], w: tools ? 6 : 4, erase: false })
-  const redraw = () => { const c = cv.current; if (!c) return; const g = c.getContext('2d'), d = window.devicePixelRatio || 1; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, c.width, c.height); g.lineCap = g.lineJoin = 'round'
+  const redraw = () => { const c = cv.current; if (!c) return; const g = c.getContext('2d'), d = window.devicePixelRatio || 1; g.setTransform(d, 0, 0, d, 0, 0); g.clearRect(0, 0, c.width, c.height); drawGrid(g, c.width / d, c.height / d, grid.current.split, grid.current.labels); g.lineCap = g.lineJoin = 'round'
     strokes.current.forEach(s => { g.strokeStyle = s.c; g.lineWidth = s.w; g.beginPath(); s.pts.forEach((p, i) => g[i ? 'lineTo' : 'moveTo'](p[0], p[1])); if (s.pts.length === 1) g.lineTo(s.pts[0][0] + 0.1, s.pts[0][1]); g.stroke() }) }
+  useEffect(() => { redraw() }, [split, labels.join('|')])
   const keep = () => { if (draftKey) try { strokes.current.length ? localStorage.setItem(draftKey, JSON.stringify(strokes.current)) : localStorage.removeItem(draftKey) } catch {} }
   useEffect(() => { if (draftKey) try { const d = JSON.parse(localStorage.getItem(draftKey) || '[]'); if (d.length) { strokes.current = d; setHas(true) } } catch {}
     const fit = () => { const c = cv.current; if (!c) return; const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1; c.width = r.width * d; c.height = r.height * d; redraw() }; fit(); const ro = new ResizeObserver(fit); ro.observe(cv.current); return () => ro.disconnect() }, [])
@@ -26,14 +35,15 @@ export function useInk({ draftKey, tools } = {}) {
   const picture = ({ crop, maxW = 1400 } = {}) => { const all = strokes.current.flatMap(s => s.pts); if (!all.length) return ''
     const r = cv.current.getBoundingClientRect(); let x0 = 0, y0 = 0, w = r.width, h = r.height
     if (crop) { const xs = all.map(p => p[0]), ys = all.map(p => p[1]); x0 = Math.max(0, Math.min(...xs) - 14); y0 = Math.max(0, Math.min(...ys) - 14); w = Math.min(r.width, Math.max(...xs) + 14) - x0; h = Math.min(r.height, Math.max(...ys) + 14) - y0 }
-    const k = Math.min(1.5, maxW / w), o = document.createElement('canvas'); o.width = Math.round(w * k); o.height = Math.round(h * k); const g = o.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, o.width, o.height); g.lineCap = g.lineJoin = 'round'
+    const k = Math.min(1.5, maxW / w), o = document.createElement('canvas'); o.width = Math.round(w * k); o.height = Math.round(h * k); const g = o.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, o.width, o.height); if (!crop) drawGrid(g, o.width, o.height, grid.current.split, grid.current.labels, k); g.lineCap = g.lineJoin = 'round'
     strokes.current.forEach(s => { g.strokeStyle = s.c; g.lineWidth = s.w * k; g.beginPath(); s.pts.forEach((p, i) => g[i ? 'lineTo' : 'moveTo']((p[0] - x0) * k, (p[1] - y0) * k)); if (s.pts.length === 1) g.lineTo((s.pts[0][0] - x0) * k + 0.1, (s.pts[0][1] - y0) * k); g.stroke() }); return o.toDataURL('image/png') }
   const Tools = () => <div className="row wrap tools" role="toolbar" aria-label="Pens">
     {COLORS.map((c, i) => <button type="button" key={c} className={'pen' + (!pen.erase && pen.c === c ? ' on' : '')} aria-pressed={!pen.erase && pen.c === c} aria-label={['Dark blue', 'Red', 'Blue', 'Green'][i] + ' pen'} style={{ background: c }} onClick={() => setPen({ ...pen, c, erase: false })} />)}
     {tools && [[4, 'Thin'], [6, 'Medium'], [10, 'Thick']].map(([w, l]) => <button type="button" key={w} className={'btn sm' + (pen.w === w && !pen.erase ? ' primary' : '')} aria-pressed={pen.w === w} onClick={() => setPen({ ...pen, w, erase: false })}>{l}</button>)}
     <button type="button" className={'btn sm' + (pen.erase ? ' primary' : '')} aria-pressed={pen.erase} onClick={() => setPen({ ...pen, erase: !pen.erase })}>Eraser</button>
     <button type="button" className="btn sm" disabled={!has} onClick={undo}>Undo</button><button type="button" className="btn sm" disabled={!has} onClick={clear}>Clear</button></div>
-  return { cv, bind, strokes, has, clear, undo, picture, Tools }
+  const size = () => { const r = cv.current.getBoundingClientRect(); return [r.width, r.height] }
+  return { cv, bind, strokes, has, clear, undo, picture, Tools, size }
 }
 // Reader with the one-time download question. Returns { run, ui } where run(pointsOfEachStroke) resolves to text or null.
 export function useReader() {
@@ -61,21 +71,30 @@ export function HandAnswer({ onText, onInk, onCancel, keepLabel = 'Use my handwr
 }
 
 // Class whiteboard for the smartboard: many students write at once; save to the activity, as a picture or as a PDF.
-export function ClassBoard({ title, prompt, draftKey, onSave, onClose }) {
-  const dlg = useRef(), ink = useInk({ draftKey, tools: true }), rd = useReader(), [found, setFound] = useState(null), [msg, setMsg] = useState('')
+export function ClassBoard({ title, prompt, draftKey, groups = [], onSave, onClose }) {
+  const [split, setSplit] = useState(() => Number(localStorage.getItem(draftKey + ':split')) || 1), [named, setNamed] = useState(groups.length > 0)
+  const labels = Array.from({ length: split }, (_, i) => named && groups[i] ? groups[i] : `Area ${i + 1}`)
+  const dlg = useRef(), ink = useInk({ draftKey, tools: true, split, labels }), rd = useReader(), [found, setFound] = useState(null), [msg, setMsg] = useState('')
+  const divide = n => { setSplit(n); try { localStorage.setItem(draftKey + ':split', n) } catch {} }
   useEffect(() => { dlg.current.showModal() }, [])
   const name = 'CoLab-Reef-' + title.replace(/\W+/g, '-')
   const png = () => { const a = document.createElement('a'); a.href = ink.picture(); a.download = name + '.png'; a.click() }
   const pdf = () => { const w = window.open('', '_blank'); if (!w) return setMsg('Allow pop-ups for this site to save as PDF, or use "Save as picture".'); w.document.write(`<title>${name}</title><style>body{margin:24px;font-family:sans-serif}img{max-width:100%;border:1px solid #999}</style><h2>${title.replace(/[<>&]/g, '')}</h2><p>${(prompt || '').replace(/[<>&]/g, '')}</p><img src="${ink.picture()}" onload="print()">`); w.document.close() }
-  const read = async () => { const gs = groupInk(ink.strokes.current), out = []; for (const g of gs) { const t = await rd.run(g.pts); if (t === null) return; out.push({ img: inkImage(g.pts), text: t }) } setFound(out) }
+  // Divided board: each area is read as one answer and keeps its label. Undivided: each separate piece of writing is read.
+  const read = async () => { const [w, h] = ink.size(), out = []
+    const gs = split > 1 ? labels.map((l, i) => ({ l, pts: ink.strokes.current.filter(s => areaOf(s.pts[0], w, h, split) === i).map(s => s.pts) })).filter(g => g.pts.length) : groupInk(ink.strokes.current).map(g => ({ l: '', pts: g.pts }))
+    for (const g of gs) { const t = await rd.run(g.pts); if (t === null) return; out.push({ img: inkImage(g.pts), text: t, l: g.l }) } setFound(out) }
   const save = texts => { onSave({ png: ink.picture(), texts: texts || [], text: 'Class whiteboard' + (texts?.length ? ': ' + texts.join(' | ') : '') }); ink.clear(); setFound(null); setMsg('Saved to this activity. The board is clear for the next question.') }
   return <dialog ref={dlg} className="dlg pad board" onClose={onClose} aria-label="Class whiteboard">
     <div className="card-h"><h3>Class whiteboard: {title}</h3><button className="btn sm" onClick={onClose}><Icon n="x" /> Close</button></div>
     {prompt && <p className="q">{prompt}</p>}
     {found ? <div><p className="hint">Check the text against the handwriting and correct it if needed. Empty boxes are skipped.</p>
-      <ul className="found">{found.map((f, i) => <li key={i}><img src={f.img} alt={'Handwriting ' + (i + 1)} /><input aria-label={'Text for handwriting ' + (i + 1)} value={f.text} onChange={e => setFound(found.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} /></li>)}</ul>
-      <div className="row wrap"><button className="btn primary" onClick={() => save(found.map(f => f.text.trim()).filter(Boolean))}><Icon n="check" /> Save board and text to this activity</button><button className="btn" onClick={() => setFound(null)}>Back to the board</button></div></div>
-    : <><p className="hint">Several students can write at the same time with fingers or board pens.</p><ink.Tools />
+      <ul className="found">{found.map((f, i) => <li key={i}>{f.l && <b>{f.l}</b>}<img src={f.img} alt={'Handwriting ' + (f.l || i + 1)} /><input aria-label={'Text for ' + (f.l || 'handwriting ' + (i + 1))} value={f.text} onChange={e => setFound(found.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} /></li>)}</ul>
+      <div className="row wrap"><button className="btn primary" onClick={() => save(found.filter(f => f.text.trim()).map(f => (f.l ? f.l + ': ' : '') + f.text.trim()))}><Icon n="check" /> Save board and text to this activity</button><button className="btn" onClick={() => setFound(null)}>Back to the board</button></div></div>
+    : <><p className="hint">Several students can write at the same time with fingers or board pens. Divide the board to give each student or group their own area.</p>
+      <div className="row wrap tools" role="group" aria-label="Divide the board"><b>Divide into</b>{[1, 2, 3, 4, 6, 8].map(n => <button type="button" key={n} className={'btn sm' + (split === n ? ' primary' : '')} aria-pressed={split === n} onClick={() => divide(n)}>{n === 1 ? 'One board' : n + ' areas'}</button>)}
+        {groups.length > 0 && split > 1 && <label className="inline"><input type="checkbox" checked={named} onChange={e => setNamed(e.target.checked)} /> Label areas with the groups</label>}</div>
+      <ink.Tools />
       <canvas ref={ink.cv} className="ink" role="img" aria-label="Class whiteboard writing area" {...ink.bind} />
       <div className="row wrap"><button className="btn primary" disabled={!ink.has} onClick={() => save()}><Icon n="check" /> Save to this activity</button>
         <button className="btn" disabled={!ink.has || rd.busy} onClick={read}><Icon n="eye" /> Read handwriting into text</button>

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+### New
+**Divide the class whiteboard** — "Divide into" splits the smartboard into 2, 3, 4, 6 or 8 writing areas so many students write at the
+same time, each in their own space. Areas are numbered, or labelled with the activity's pairs or groups ("Group 1: Omar, Sara").
+The dividing lines and labels are part of the saved picture and PDF. On a divided board, "Read handwriting into text" reads each
+area as one answer and keeps its label.
+
 ## 1.2.0
 
 Handwriting inside the activities.
