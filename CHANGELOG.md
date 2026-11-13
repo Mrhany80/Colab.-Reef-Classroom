@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.3
+
+### Fixed
+**No more blank page.** If the app was updated while a page was open, the page now loads the new version by itself. If a screen fails
+for any other reason, it shows a short message with Reload and "Clear unfinished boards on this device" instead of going blank.
+Unfinished boards saved on a device by an older version are checked before they are reopened.
+
 ## 1.4.2
 
 Everything on one page: no feature opens a new tab.

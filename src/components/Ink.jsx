@@ -46,7 +46,8 @@ export function useInk({ draftKey, tools, split = 1, labels = [] } = {}) {
   useEffect(() => { redraw() }, [split, labels.join('|'), bg])
   const keep = () => { if (draftKey) try { strokes.current.length ? localStorage.setItem(draftKey, JSON.stringify(strokes.current)) : localStorage.removeItem(draftKey) } catch {} }
   const touch = () => { setHas(strokes.current.length > 0); redraw(); keep() }
-  useEffect(() => { if (draftKey) try { const d = JSON.parse(localStorage.getItem(draftKey) || '[]'); if (d.length) { strokes.current = d; setHas(true) } } catch {}
+  useEffect(() => { if (draftKey) try { const ok = i => i && (Array.isArray(i.pts) ? i.pts.length > 0 && i.pts.every(p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])) : i.t === 'text' ? typeof i.s === 'string' && isFinite(i.x) && isFinite(i.y) && i.size > 0 : i.t === 'img' ? typeof i.src === 'string' && i.w > 0 && i.h > 0 : false)
+      const d = JSON.parse(localStorage.getItem(draftKey) || '[]').filter(ok); if (d.length) { strokes.current = d; setHas(true) } } catch { try { localStorage.removeItem(draftKey) } catch {} }
     const fit = () => { const c = cv.current; if (!c) return; const r = c.getBoundingClientRect(), d = window.devicePixelRatio || 1; c.width = r.width * d; c.height = r.height * d; redraw() }; fit(); const ro = new ResizeObserver(fit); ro.observe(cv.current); return () => ro.disconnect() }, [])
   const pt = e => { const r = cv.current.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top, Math.round(e.timeStamp)] }
   const eraseAt = p => { const n = strokes.current.filter(s => s.pts ? !s.pts.some(q => Math.hypot(q[0] - p[0], q[1] - p[1]) < 18) : !inBox(s, p)); if (n.length !== strokes.current.length) { strokes.current = n; setHas(n.length > 0); redraw() } }
@@ -143,7 +144,7 @@ export function HandAnswer({ onText, onInk, onCancel, keepLabel = 'Use my handwr
 
 // Class whiteboard for the smartboard: many students write at once; save to the activity, as a picture or as a PDF.
 export function ClassBoard({ title, prompt, draftKey, groups = [], onSave, onClose }) {
-  const [split, setSplit] = useState(() => Number(localStorage.getItem(draftKey + ':split')) || 1), [named, setNamed] = useState(groups.length > 0)
+  const [split, setSplit] = useState(() => { const n = Number(localStorage.getItem(draftKey + ':split')); return GRIDS[n] ? n : 1 }), [named, setNamed] = useState(groups.length > 0)
   const labels = Array.from({ length: split }, (_, i) => named && groups[i] ? groups[i] : `Area ${i + 1}`)
   const dlg = useRef(), ink = useInk({ draftKey, tools: true, split, labels }), rd = useReader(), mic = useRecorder(), [found, setFound] = useState(null), [msg, setMsg] = useState(''), snap = useRef('')
   const divide = n => { setSplit(n); try { localStorage.setItem(draftKey + ':split', n) } catch {} }
