@@ -169,3 +169,4 @@ html{background:#081627}
 @media print{.dash-h p{color:#333}.kpi,.viz{box-shadow:none;border:1px solid #999;break-inside:avoid}.vgrid{grid-template-columns:1fr 1fr}}
 .card details>summary{cursor:pointer;font-weight:700;min-height:32px}
 dialog.pad.board{display:flex;flex-direction:column}dialog.pad.board[open]{height:97vh}dialog.pad.board .inkwrap{flex:1 1 auto;min-height:260px;display:flex}dialog.pad.board .inkwrap .ink{height:auto;flex:1;margin:4px 0}dialog.pad.board>.row,dialog.pad.board>.tools,dialog.pad.board>p,dialog.pad.board>.card-h{flex:none}dialog.pad.board .tools{margin:2px 0}dialog.pad.board>p.hint{margin:0}
+.codetext{font-family:Fraunces,serif;letter-spacing:.12em;font-size:1.3em;color:#9a3412}.proj-h .btn{background:transparent;color:var(--sand);border-color:var(--sand)}

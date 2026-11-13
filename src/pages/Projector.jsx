@@ -23,7 +23,7 @@ export const defaultGroups = ctx => { const gp = ctx.mod.group; if (!gp || !ctx.
   return ctx.groups.map((g, i) => ({ label: (gp.size === 2 ? 'Pair ' : 'Group ') + (i + 1), ids: g })) }
 
 // Projector view: large type, prompts, timers, groupings. Never shows a name beside an answer that could be wrong.
-export function Projector({ code }) {
+export function Projector({ code, onBack }) {
   const live = useLive(code), points = useReefPoints(live.session, live.entries), [board, setBoard] = useState(false), [qr, setQr] = useState(false)
   if (!live.ready) return <main className="center"><p className="on-dark">Loading</p></main>
   if (!live.session) return <main className="center"><p className="on-dark">No session has the code {code}.</p></main>
@@ -31,12 +31,12 @@ export function Projector({ code }) {
   const joined = new Set(live.entries.filter(e => e.kind === 'join').map(e => e.student_id)).size
   const groups = st.lobby ? [] : (mod.projGroups ? mod.projGroups(ctx) : mod === undefined ? [] : (session.playlist[st.step].type === 'hinge' && ctx.x.decision !== 'pair') ? [] : defaultGroups(ctx))
   const pr = st.projPraise && live.entries.find(e => e.id === st.projPraise)
-  return <div className="proj"><header className="proj-h"><Brand small /><span>{cls.name} · {session.title}</span><Maker dark />{session.mode !== 'one' && session.status !== 'ended' ? <button className="btn sm joinbtn" onClick={() => setQr(true)}>Join: <b>{session.code}</b> · Show QR</button> : <span className="join-s">Code <b>{session.code}</b></span>}</header>
+  return <div className={'proj' + (onBack ? ' embedded' : '')}><header className="proj-h">{onBack ? <button className="btn sm" onClick={onBack}><Icon n="x" /> Back to teacher controls</button> : <Brand small />}<span>{cls.name} · {session.title}</span><Maker dark />{session.status !== 'ended' ? <button className="btn sm joinbtn" onClick={() => setQr(true)}>Join: <b>{session.code}</b> · Show QR</button> : <span className="join-s">Code <b>{session.code}</b></span>}</header>
     {qr && <JoinQr code={session.code} cls={cls.name} onClose={() => setQr(false)} />}
     <main id="main">
       {session.status === 'ended' ? <div className="center"><h1>Session finished</h1><p className="lead">Thank you, {cls.name}.</p></div>
-      : st.lobby ? <div className="lobby"><div><h1>Join the session</h1>{session.mode === 'one' ? <p className="lead">No devices needed today. Watch this screen for prompts, timers and groups.</p> : <><p className="lead">Open <b>{joinUrl('').replace(/^https?:\/\//, '').replace('#/join/', '')}</b> and enter the code, or scan.</p><div className="bigcode" aria-label={'Join code ' + session.code.split('').join(' ')}>{session.code}</div></>}
-          <p className="lead">{session.mode === 'one' ? cls.students.length + ' students on the roster' : `${joined} of ${cls.students.length} joined`}</p></div>{session.mode !== 'one' && <Qr code={session.code} size={260} />}</div>
+      : st.lobby ? <div className="lobby"><div><h1>Join the session</h1>{session.mode === 'one' && <p className="lead">No devices needed today. Watch this screen for prompts, timers and groups. Students who do have a device can still join.</p>}<><p className="lead">Open <b>{joinUrl('').replace(/^https?:\/\//, '').replace('#/join/', '')}</b> and enter the code, or scan.</p><div className="bigcode" aria-label={'Join code ' + session.code.split('').join(' ')}>{session.code}</div></>
+          <p className="lead">{session.mode === 'one' ? cls.students.length + ' students on the roster' : `${joined} of ${cls.students.length} joined`}</p></div><Qr code={session.code} size={260} /></div>
       : <><div className="phase-h"><div><div className="eyebrow">{mod.name} · {ctx.cfg.topic} · step {st.phase + 1} of {mod.phases.length}</div><h1>{phase.name}</h1></div><Timer st={st} big /></div>
         <p className="instr big">{phase.proj}</p>
         <div className="row wrap"><button className="btn primary" onClick={() => setBoard(true)}><Icon n="edit" /> Open class whiteboard</button>{ctx.all('board').length > 0 && <Tag>{ctx.all('board').length} board{ctx.all('board').length > 1 ? 's' : ''} saved in this activity</Tag>}</div>

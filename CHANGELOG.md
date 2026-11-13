@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.2
+
+Everything on one page: no feature opens a new tab.
+
+### Changed
+**Projector view on the same page** — "Show projector view" in the teacher's view switches the same page to the big-screen view;
+"Back to teacher controls" returns. The separate link (`#/projector/CODE`) still works for a second screen.
+**Save as PDF stays on the page** — the whiteboard and the name board print from the same page instead of opening a tab.
+
+### Fixed
+**QR code** — the join QR is now shown in the teacher's lobby itself, and in every room mode. Before, it only appeared on the
+projector view, and not at all in "Onsite, one device" mode.
+
 ## 1.4.1
 
 ### Fixed

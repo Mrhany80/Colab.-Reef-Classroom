@@ -112,6 +112,10 @@ export function useRecorder(max = 90) {
     {audio && state !== 'rec' && <><audio controls src={audio} aria-label="Recorded audio" /><button type="button" className="btn sm" onClick={() => setAudio('')}>Remove audio</button></>}{err && <span className="error" role="alert">{err}</span>}</span>
   return { audio, ui, reset: () => setAudio(''), recording: state === 'rec' }
 }
+// Save as PDF without leaving the page: a hidden frame is printed (choose "Save as PDF" in the print window).
+export function printPicture(name, title, prompt, src) { const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;width:0;height:0;border:0;right:0;bottom:0'; document.body.appendChild(f)
+  const safe = t => String(t || '').replace(/[<>&]/g, ''), d = f.contentDocument; d.open(); d.write(`<title>${safe(name)}</title><style>body{margin:24px;font-family:sans-serif}img{max-width:100%;border:1px solid #999}</style><h2>${safe(title)}</h2><p>${safe(prompt)}</p><img src="${src}">`); d.close()
+  const im = d.querySelector('img'), go = () => { f.contentWindow.focus(); f.contentWindow.print(); setTimeout(() => f.remove(), 60000) }; im.complete ? go() : (im.onload = go) }
 // Reader with the one-time download question. Returns { run, ui } where run(pointsOfEachStroke) resolves to text or null.
 export function useReader() {
   const [busy, setBusy] = useState(''), [prog, setProg] = useState(0), [ask, setAsk] = useState(null), [err, setErr] = useState('')
@@ -146,7 +150,7 @@ export function ClassBoard({ title, prompt, draftKey, groups = [], onSave, onClo
   useEffect(() => { dlg.current.showModal() }, [])
   const name = 'CoLab-Reef-' + title.replace(/\W+/g, '-')
   const png = () => { const a = document.createElement('a'); a.href = ink.picture(); a.download = name + '.png'; a.click() }
-  const pdf = () => { const w = window.open('', '_blank'); if (!w) return setMsg('Allow pop-ups for this site to save as PDF, or use "Save as picture".'); w.document.write(`<title>${name}</title><style>body{margin:24px;font-family:sans-serif}img{max-width:100%;border:1px solid #999}</style><h2>${title.replace(/[<>&]/g, '')}</h2><p>${(prompt || '').replace(/[<>&]/g, '')}</p><img src="${ink.picture()}" onload="print()">`); w.document.close() }
+  const pdf = () => printPicture(name, title, prompt, ink.picture())
   // Divided board: each area is read as one answer and keeps its label. Undivided: each separate piece of writing is read.
   const read = async () => { const [w, h] = ink.size(), out = []
     const hand = strokesOf(ink.strokes.current), typed = ink.strokes.current.filter(i => i.t === 'text'), at = i => it => areaOf(it.pts ? it.pts[0] : [it.x, it.y], w, h, split) === i

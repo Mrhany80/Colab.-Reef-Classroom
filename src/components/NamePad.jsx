@@ -67,7 +67,7 @@ export function NamePad({ names, onAdd, onRemove, onClose, className }) {
   const picture = () => { const c = cv.current, o = document.createElement('canvas'); o.width = c.width; o.height = c.height; const g = o.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, o.width, o.height); g.drawImage(c, 0, 0); return o.toDataURL('image/png') }
   const fileName = () => 'CoLab-Reef-' + (className || 'class').replace(/\W+/g, '-') + '-names'
   const savePng = () => { const a = document.createElement('a'); a.href = picture(); a.download = fileName() + '.png'; a.click() }
-  const savePdf = () => { const w = window.open('', '_blank'); if (!w) return setMsg('Allow pop-ups for this site to save as PDF, or use "Save as picture".'); w.document.write(`<title>${fileName()}</title><style>body{margin:24px;font-family:sans-serif}img{max-width:100%;border:1px solid #999}</style><h2>${(className || 'Class').replace(/[<>&]/g, '')}: names written on the board</h2><img src="${picture()}" onload="print()">`); w.document.close() }
+  const savePdf = () => import('./Ink.jsx').then(m => m.printPicture(fileName(), (className || 'Class') + ': names written on the board', '', picture()))
   const openMode = k => { let d = []; try { d = JSON.parse(localStorage.getItem(draft) || '[]') } catch {} clear(); setMode(k); if (d.length) { try { localStorage.setItem(draft, JSON.stringify(d)) } catch {} if (k === 'board') { strokes.current = d; setHas(true) } } }
   const focus = () => setTimeout(() => input.current?.focus(), 50)
   const fail = () => 'The handwriting reader could not load (it needs internet the first time).'

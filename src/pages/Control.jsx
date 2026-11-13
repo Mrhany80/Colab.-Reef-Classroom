@@ -6,7 +6,7 @@ import { KIND, summ, counts } from '../lib/summ.js'
 import { uid, store } from '../lib/store.js'
 import { Timer, Card, Icon, Tag, Note, useNow } from '../components/ui.jsx'
 import { StudentBody, useReefPoints } from './Student.jsx'
-import { MODE, JoinQr } from './Projector.jsx'
+import { MODE, JoinQr, Qr, Projector } from './Projector.jsx'
 import { Ans, ClassBoard } from '../components/Ink.jsx'
 import { Brand } from './Landing.jsx'
 
@@ -53,7 +53,7 @@ function PraisePanel({ live, ctx, triggers }) {
 }
 
 export function Control({ code }) {
-  const live = useLive(code), sent = useRef(new Set()), [sel, setSel] = useState(null), [as, setAs] = useState(null), [tab, setTab] = useState('run'), [qr, setQr] = useState(false), [board, setBoard] = useState(false)
+  const live = useLive(code), sent = useRef(new Set()), [sel, setSel] = useState(null), [as, setAs] = useState(null), [tab, setTab] = useState('run'), [qr, setQr] = useState(false), [board, setBoard] = useState(false), [present, setPresent] = useState(false)
   const points = useReefPoints(live.session, live.entries)
   const triggers = useMemo(() => live.session && live.cls ? detect(live.session, live.cls, live.entries) : [], [live.entries.length, live.session, live.cls])
   const ready = live.ready && live.session && live.cls
@@ -83,16 +83,18 @@ export function Control({ code }) {
   const joined = new Set(live.entries.filter(e => e.kind === 'join').map(e => e.student_id))
   const part = id => ctx.one('part', `${st.phase}-${id}`)
   const ended = session.status === 'ended'
+  if (present) return <Projector code={code} onBack={() => setPresent(false)} />
   return <div className="teacher">
     <header className="top"><a href="#/teacher" aria-label="Back to dashboard"><Brand small /></a><div className="top-m"><b>{session.title}</b><span>{cls.name} · {MODE[session.mode]} · {points} reef points</span></div>
-      <div className="row wrap"><span className="join-s">Code <b>{session.code}</b></span>{session.mode !== 'one' && <button className="btn sm" onClick={() => setQr(true)}>Join QR</button>}<a className="btn sm" href={'#/projector/' + session.code} target="_blank" rel="noreferrer"><Icon n="screen" /> Open projector view</a><a className="btn sm" href={'#/report/' + session.code}><Icon n="down" /> Report</a></div></header>
+      <div className="row wrap"><span className="join-s">Code <b>{session.code}</b></span><button className="btn sm" onClick={() => setQr(true)}>Join QR</button><button className="btn sm primary" onClick={() => setPresent(true)}><Icon n="screen" /> Show projector view</button><a className="btn sm" href={'#/report/' + session.code}><Icon n="down" /> Report</a></div></header>
     <nav className="playlist" aria-label="Lesson playlist">{session.playlist.map((it, i) => <button key={i} className={'pl' + (i === st.step && !st.lobby ? ' on' : '')} aria-current={i === st.step && !st.lobby ? 'step' : undefined} onClick={() => go(0, null, i)} disabled={ended}><span>{i + 1}</span> {MODULES[it.type].name}<small>{it.config.topic}</small></button>)}</nav>
     <div className="tabs" role="tablist">{[['run', 'Run'], ['praise', `Praise (${triggers.length})`], ['roster', 'Roster']].map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
     <main id="main" className={'grid tab-' + tab}>
       <div className="g-run">
         {ended ? <Card title="This session has finished"><p>Open the report to see participation, answers and praise.</p><a className="btn primary" href={'#/report/' + session.code}>Open report</a></Card>
-        : st.lobby ? <Card title="Lobby" tone="coral"><p>{session.mode === 'one' ? 'One-device mode: students do not join. Open the projector view, then start.' : `${joined.size} of ${cls.students.length} students have joined with code ${session.code}.`}</p>
-          <button className="btn primary" onClick={() => go(0)}><Icon n="play" /> Start session</button></Card>
+        : st.lobby ? <Card title="Lobby" tone="coral"><div className="qr-row"><Qr code={session.code} size={200} /><div><p>{session.mode === 'one' ? 'One-device mode: students do not need to join. Any who have a device can still scan the code.' : `${joined.size} of ${cls.students.length} students have joined.`}</p>
+            <p>Students scan the QR code, or open the site and enter <b className="codetext">{session.code}</b>. It works on any Wi-Fi network or mobile data.</p>
+            <div className="row wrap"><button className="btn primary" onClick={() => go(0)}><Icon n="play" /> Start session</button><button className="btn" onClick={() => setQr(true)}>Bigger QR</button><button className="btn" onClick={() => setPresent(true)}><Icon n="screen" /> Show projector view</button></div></div></div></Card>
         : <><Card title={`${mod.name}: ${phase.name}`} right={<Timer st={st} />}>
             <ol className="phases">{mod.phases.map((p, i) => <li key={p.id}><button className={'ph' + (i === st.phase ? ' on' : '')} aria-current={i === st.phase ? 'step' : undefined} onClick={() => go(i)}>{i + 1}. {p.name}</button></li>)}</ol>
             <p className="instr">{phase.proj}</p>
