@@ -47,12 +47,20 @@ function ClassEditor({ cls, onSave, onDelete, praise }) {
 }
 
 function Builder({ classes, sessions, onCreate }) {
-  const [f, setF] = useState({ title: '', class_id: classes[0]?.id, mode: 'devices', playlist: [] }), [open, setOpen] = useState(null)
+  const [f, setF] = useState({ title: '', class_id: classes[0]?.id || 'new', mode: 'devices', playlist: [] }), [open, setOpen] = useState(null), [nc, setNc] = useState({ name: '', names: '' }), [busy, setBusy] = useState(false)
+  const isNew = f.class_id === 'new', roster = parseRoster(nc.names), dup = isNew && classes.some(c => c.name.trim().toLowerCase() === nc.name.trim().toLowerCase())
   const setPl = pl => setF(p => ({ ...p, playlist: pl })), mv = (i, d) => { const pl = [...f.playlist];[pl[i], pl[i + d]] = [pl[i + d], pl[i]]; setPl(pl); setOpen(null) }
-  const ok = f.title.trim() && f.class_id && f.playlist.length
+  const ok = f.title.trim() && f.playlist.length && (isNew ? nc.name.trim() && roster.length >= 2 && !dup : f.class_id)
   return <Card title="New session"><div className="form">
     <div><label htmlFor="st">Session title</label><input id="st" value={f.title} placeholder="e.g. Osmosis, lesson 2" onChange={e => setF({ ...f, title: e.target.value })} /></div>
-    <div><label htmlFor="sc">Class</label><select id="sc" value={f.class_id} onChange={e => setF({ ...f, class_id: e.target.value })}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+    <div><label htmlFor="sc">Class</label><select id="sc" value={f.class_id} onChange={e => setF({ ...f, class_id: e.target.value })}>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}<option value="new">Add a new class</option></select></div>
+    {isNew && <fieldset className="subcard"><legend>New class</legend>
+      <div><label htmlFor="nc-n">Class name</label><input id="nc-n" value={nc.name} placeholder="e.g. Grade 10 B" onChange={e => setNc({ ...nc, name: e.target.value })} aria-describedby={dup ? 'nc-dup' : undefined} />{dup && <p id="nc-dup" className="error" role="alert">You already have a class with this name. Choose it from the list above or use a different name.</p>}</div>
+      <div><label htmlFor="nc-s">Student first names</label><p className="hint">Paste or type first names separated by commas or new lines, or choose a CSV file. Only first names are kept; family names are dropped.</p>
+        <textarea id="nc-s" rows={4} value={nc.names} placeholder="Omar, Yousef, Faisal" onChange={e => setNc({ ...nc, names: e.target.value })} /></div>
+      <div className="row wrap"><label className="btn sm">Choose CSV file<input type="file" accept=".csv,.txt" className="sr" onChange={async e => { const file = e.target.files[0]; if (file) { const t = (await file.text()).split('\n').map(l => l.split(',')[0]).join('\n'); setNc(v => ({ ...v, names: t })) } }} /></label>
+        <span className="hint" role="status">{roster.length} student{roster.length === 1 ? '' : 's'}{roster.length ? ': ' + roster.join(', ') : ''}</span></div>
+      <p className="hint">The class is saved with the session. You can edit it later in the Classes tab.</p></fieldset>}
     <fieldset><legend>Room mode</legend><div className="choices">{[['online', 'Every student on their own device. Pairs and groups get private text rooms.'], ['devices', 'Students talk face to face. Devices are for private answers, votes and group products.'], ['one', 'Only you have a device. The projector shows prompts, timers and groups; you tap names to record participation.']].map(([k, d]) =>
       <label key={k} className={'choice' + (f.mode === k ? ' on' : '')}><input type="radio" name="mode" checked={f.mode === k} onChange={() => setF({ ...f, mode: k })} /><span><b>{MODE[k]}.</b> {d}</span></label>)}</div></fieldset>
     <fieldset><legend>Lesson playlist ({f.playlist.length} {f.playlist.length === 1 ? 'activity' : 'activities'})</legend>
@@ -64,9 +72,11 @@ function Builder({ classes, sessions, onCreate }) {
           <fieldset><legend>Phase timers (seconds)</legend><div className="row wrap">{m.phases.filter(p => p.secs).map(p => <div key={p.id}><label htmlFor={`t${i}${p.id}`}>{p.name}</label><input id={`t${i}${p.id}`} type="number" min="10" step="10" value={it.config.secs[p.id]} onChange={e => setPl(f.playlist.map((x, j) => j === i ? { ...x, config: { ...x.config, secs: { ...x.config.secs, [p.id]: Number(e.target.value) } } } : x))} /></div>)}</div></fieldset></>}</li> })}</ol>
       <div className="mods">{ORDER.map(t => <button type="button" key={t} className="mod" onClick={() => setPl([...f.playlist, newItem(t)])}><span className="eyebrow">{MODULES[t].family}</span><b><Icon n="plus" s={14} /> {MODULES[t].name}</b><span>{MODULES[t].blurb}</span></button>)}</div>
       <button type="button" className="btn" onClick={() => setPl(ORDER.map(newItem))}>Load all 12 sample activities</button></fieldset>
-    <button className="btn primary" disabled={!ok} onClick={() => onCreate({ id: crypto.randomUUID(), code: newCode(), title: f.title.trim(), class_id: f.class_id, mode: f.mode, playlist: f.playlist, status: 'live', created_at: new Date().toISOString(),
-      state: { step: 0, phase: 0, lobby: true, endsAt: null, pausedLeft: null, groups: {}, x: {}, classIndex: sessions.filter(s => s.class_id === f.class_id).length } })}>Create session and open the lobby</button>
-    {!ok && <p className="hint">A session needs a title, a class and at least one activity.</p>}</div></Card>
+    <button className="btn primary" disabled={!ok || busy} onClick={async () => { setBusy(true)
+      const cls = isNew ? { id: crypto.randomUUID(), name: nc.name.trim(), is_sample: false, settings: structuredClone(DEFAULT_SETTINGS), students: roster.map(n => ({ id: sid(), name: n })) } : null
+      await onCreate({ id: crypto.randomUUID(), code: newCode(), title: f.title.trim(), class_id: cls ? cls.id : f.class_id, mode: f.mode, playlist: f.playlist, status: 'live', created_at: new Date().toISOString(),
+        state: { step: 0, phase: 0, lobby: true, endsAt: null, pausedLeft: null, groups: {}, x: {}, classIndex: cls ? 0 : sessions.filter(x => x.class_id === f.class_id).length } }, cls); setBusy(false) }}>Create session and open the lobby</button>
+    {!ok && <p className="hint">A session needs a title, a class{isNew ? ' with a name and at least 2 students' : ''} and at least one activity.</p>}</div></Card>
 }
 
 export function TeacherHome() {
@@ -82,7 +92,7 @@ export function TeacherHome() {
       {tab === 'sessions' && <Card title="Your sessions">{!sessions.length && <><p>No sessions yet. A session is one lesson: a class, a room mode and a playlist of activities.</p><button className="btn primary" onClick={() => setTab('new')}>Build your first session</button></>}
         <ul className="list">{[...sessions].reverse().map(s => <li key={s.id}><div><b>{s.title}</b> <Tag tone={s.status === 'ended' ? '' : 'ok'}>{s.status === 'ended' ? 'Finished' : 'Live'}</Tag><p className="hint">{name(s.class_id)} · {MODE[s.mode]} · code {s.code} · {s.playlist.map(p => MODULES[p.type].name).join(', ')}</p></div>
           <div className="row wrap"><a className="btn sm primary" href={'#/control/' + s.code}>Open</a><a className="btn sm" href={'#/report/' + s.code}>Report</a><button className="btn sm" aria-label={`Delete ${s.title}`} onClick={() => confirm(`Delete "${s.title}" and all its responses? This cannot be undone.`) && store.deleteSession(s.id).then(load)}><Icon n="trash" /></button></div></li>)}</ul></Card>}
-      {tab === 'new' && (classes.length ? <Builder classes={classes} sessions={sessions} onCreate={async s => { try { await store.saveSession(s); location.hash = '/control/' + s.code } catch (e) { setErr(e.message) } }} /> : <Card title="Add a class first"><button className="btn primary" onClick={() => setTab('classes')}>Go to classes</button></Card>)}
+      {tab === 'new' && <Builder classes={classes} sessions={sessions} onCreate={async (ses, cls) => { try { setErr(''); if (cls) await store.saveClass(cls); await store.saveSession(ses); location.hash = '/control/' + ses.code } catch (e) { setErr(e.message); load() } }} />}
       {tab === 'classes' && <><button className="btn primary" onClick={() => setClasses([...classes, { id: crypto.randomUUID(), name: '', is_sample: false, students: [], settings: structuredClone(DEFAULT_SETTINGS), isNew: true }])}><Icon n="plus" /> New class</button>
         {classes.map(c => <ClassEditor key={c.id} cls={c} praise={praise[c.id] || []} onSave={async ({ isNew, ...x }) => { await store.saveClass(x); load() }} onDelete={async id => { for (const s of sessions.filter(s => s.class_id === id)) await store.deleteSession(s.id); await store.deleteClass(id); load() }} />)}</>}
     </main></div>
